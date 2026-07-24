@@ -17,7 +17,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/assessments', assessmentsRouter);
 
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/formcoach';
 
 mongoose
