@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "FormCoach",
+			"path": "../../FormCoach"
+		},
+		{
+			"name": "server",
+			"path": ".."
+		},
+		{
+			"name": "client",
+			"path": "../../client"
+		}
+	],
+	"settings": {}
+}

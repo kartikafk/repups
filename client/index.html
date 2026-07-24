@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <title>FormCoach — Live Rep Tracker</title>
+
+  <meta name="theme-color" content="#0A0B0D" />
+  <link rel="icon" href="/icon-192.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <script>
+    // Ensure any old service workers or caches are removed before app loads
+    (function(){
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs){
+            regs.forEach(function(r){ try{ r.unregister(); }catch(e){} });
+          }).catch(function(){});
+        }
+        if (window.caches && caches.keys) {
+          caches.keys().then(function(names){
+            return Promise.all(names.map(function(n){ try{ return caches.delete(n); }catch(e){} }));
+          }).catch(function(){});
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>
