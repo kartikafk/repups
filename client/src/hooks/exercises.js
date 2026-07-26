@@ -1,55 +1,40 @@
 // Mediapipe pose landmark indices
-
 export const LM = {
   NOSE: 0,
-
   L_EYE_INNER: 1,
   L_EYE: 2,
   L_EYE_OUTER: 3,
-
   R_EYE_INNER: 4,
   R_EYE: 5,
   R_EYE_OUTER: 6,
-
   L_EAR: 7,
   R_EAR: 8,
-
   MOUTH_L: 9,
   MOUTH_R: 10,
-
   L_SHOULDER: 11,
   R_SHOULDER: 12,
-
   L_ELBOW: 13,
   R_ELBOW: 14,
-
   L_WRIST: 15,
   R_WRIST: 16,
-
   L_PINKY: 17,
   R_PINKY: 18,
-
   L_INDEX: 19,
   R_INDEX: 20,
-
   L_THUMB: 21,
   R_THUMB: 22,
-
   L_HIP: 23,
   R_HIP: 24,
-
   L_KNEE: 25,
   R_KNEE: 26,
-
   L_ANKLE: 27,
   R_ANKLE: 28,
-
   L_HEEL: 29,
   R_HEEL: 30,
-
   L_FOOT: 31,
   R_FOOT: 32
 };
+
 function midpoint(a,b){
     return{
         x:(a.x+b.x)/2,
@@ -88,86 +73,24 @@ function normalize(v){
         y:v.y/m
     };
 }
+
 function buildVirtualJoints(lm){
-
-    const shoulderMid=midpoint(
-        lm[LM.L_SHOULDER],
-        lm[LM.R_SHOULDER]
-    );
-
-    const hipMid=midpoint(
-        lm[LM.L_HIP],
-        lm[LM.R_HIP]
-    );
-
-    const neck=interpolate(
-        shoulderMid,
-        lm[LM.NOSE],
-        0.35
-    );
-
-    const chin=midpoint(
-        lm[LM.MOUTH_L],
-        lm[LM.MOUTH_R]
-    );
-
-    const head=interpolate(
-        neck,
-        lm[LM.NOSE],
-        1.15
-    );
-
-    const chest=interpolate(
-        shoulderMid,
-        hipMid,
-        0.22
-    );
-
-    const upperSpine=interpolate(
-        shoulderMid,
-        hipMid,
-        0.32
-    );
-
-    const midSpine=interpolate(
-        shoulderMid,
-        hipMid,
-        0.50
-    );
-
-    const lowerSpine=interpolate(
-        shoulderMid,
-        hipMid,
-        0.72
-    );
-
+    const shoulderMid=midpoint(lm[LM.L_SHOULDER], lm[LM.R_SHOULDER]);
+    const hipMid=midpoint(lm[LM.L_HIP], lm[LM.R_HIP]);
+    const neck=interpolate(shoulderMid, lm[LM.NOSE], 0.35);
+    const chin=midpoint(lm[LM.MOUTH_L], lm[LM.MOUTH_R]);
+    const head=interpolate(neck, lm[LM.NOSE], 1.15);
+    const chest=interpolate(shoulderMid, hipMid, 0.22);
+    const upperSpine=interpolate(shoulderMid, hipMid, 0.32);
+    const midSpine=interpolate(shoulderMid, hipMid, 0.50);
+    const lowerSpine=interpolate(shoulderMid, hipMid, 0.72);
     const pelvis=hipMid;
 
     return{
-
-        head,
-
-        chin,
-
-        neck,
-
-        chest,
-
-        upperSpine,
-
-        midSpine,
-
-        lowerSpine,
-
-        pelvis,
-
-        shoulderMid,
-
-        hipMid
-
+        head, chin, neck, chest, upperSpine, midSpine, lowerSpine, pelvis, shoulderMid, hipMid
     };
-
 }
+
 // Exercise configs: which angle drives rep counting, and thresholds (degrees)
 export const EXERCISES = {
 
@@ -180,17 +103,21 @@ export const EXERCISES = {
     primaryAngle: "kneeAngle",
     topAngle: 165,
     bottomAngle: 100,
-    goodDepth: 110
+    goodDepth: 110,
+    compoundJoints: [
+      { name: "hipAngle", min: 50, max: 120, flag: "hips_too_high" } 
+    ]
   },
-
   deepSquat: {
     label: "DEEP SQUAT",
     primaryAngle: "kneeAngle",
     topAngle: 165,
     bottomAngle: 80,
-    goodDepth: 90
+    goodDepth: 90,
+    compoundJoints: [
+      { name: "hipAngle", min: 40, max: 100, flag: "hips_too_high" }
+    ]
   },
-
   jumpSquat: {
     label: "JUMP SQUAT",
     primaryAngle: "kneeAngle",
@@ -198,7 +125,6 @@ export const EXERCISES = {
     bottomAngle: 95,
     goodDepth: 105
   },
-
   lunge: {
     label: "LUNGE",
     primaryAngle: "kneeAngle",
@@ -206,7 +132,6 @@ export const EXERCISES = {
     bottomAngle: 95,
     goodDepth: 105
   },
-
   walkingLunge: {
     label: "WALKING LUNGE",
     primaryAngle: "kneeAngle",
@@ -214,7 +139,6 @@ export const EXERCISES = {
     bottomAngle: 95,
     goodDepth: 105
   },
-
   reverseLunge: {
     label: "REVERSE LUNGE",
     primaryAngle: "kneeAngle",
@@ -222,7 +146,6 @@ export const EXERCISES = {
     bottomAngle: 95,
     goodDepth: 105
   },
-
   bulgarianSplitSquat: {
     label: "BULGARIAN SPLIT SQUAT",
     primaryAngle: "kneeAngle",
@@ -230,15 +153,16 @@ export const EXERCISES = {
     bottomAngle: 90,
     goodDepth: 100
   },
-
   gobletSquat: {
     label: "GOBLET SQUAT",
     primaryAngle: "kneeAngle",
     topAngle: 165,
     bottomAngle: 100,
-    goodDepth: 110
+    goodDepth: 110,
+    compoundJoints: [
+      { name: "hipAngle", min: 50, max: 120, flag: "hips_too_high" }
+    ]
   },
-
   legPress: {
     label: "LEG PRESS",
     primaryAngle: "kneeAngle",
@@ -246,7 +170,6 @@ export const EXERCISES = {
     bottomAngle: 90,
     goodDepth: 100
   },
-
   hackSquat: {
     label: "HACK SQUAT",
     primaryAngle: "kneeAngle",
@@ -254,31 +177,36 @@ export const EXERCISES = {
     bottomAngle: 90,
     goodDepth: 100
   },
-
   deadlift: {
     label: "DEADLIFT",
     primaryAngle: "hipAngle",
     topAngle: 175,
     bottomAngle: 75,
-    goodDepth: 90
+    goodDepth: 90,
+    compoundJoints: [
+      { name: "kneeAngle", min: 85, max: 135, flag: "knees_too_straight" } 
+    ]
   },
-
   romanianDeadlift: {
     label: "ROMANIAN DEADLIFT",
     primaryAngle: "hipAngle",
     topAngle: 175,
     bottomAngle: 85,
-    goodDepth: 95
+    goodDepth: 95,
+    compoundJoints: [
+      { name: "kneeAngle", min: 140, max: 180, flag: "knees_too_bent" } 
+    ]
   },
-
   stiffLegDeadlift: {
     label: "STIFF LEG DEADLIFT",
     primaryAngle: "hipAngle",
     topAngle: 175,
     bottomAngle: 80,
-    goodDepth: 90
+    goodDepth: 90,
+    compoundJoints: [
+      { name: "kneeAngle", min: 155, max: 180, flag: "knees_too_bent" } 
+    ]
   },
-
   hipThrust: {
     label: "HIP THRUST",
     primaryAngle: "hipAngle",
@@ -286,7 +214,6 @@ export const EXERCISES = {
     bottomAngle: 90,
     goodDepth: 100
   },
-
   gluteBridge: {
     label: "GLUTE BRIDGE",
     primaryAngle: "hipAngle",
@@ -294,7 +221,6 @@ export const EXERCISES = {
     bottomAngle: 90,
     goodDepth: 100
   },
-
   calfRaise: {
     label: "CALF RAISE",
     primaryAngle: "ankleAngle",
@@ -302,7 +228,6 @@ export const EXERCISES = {
     bottomAngle: 75,
     goodDepth: 85
   },
-
   legExtension: {
     label: "LEG EXTENSION",
     primaryAngle: "kneeAngle",
@@ -310,7 +235,6 @@ export const EXERCISES = {
     bottomAngle: 90,
     goodDepth: 100
   },
-
   legCurl: {
     label: "LEG CURL",
     primaryAngle: "kneeAngle",
@@ -328,17 +252,21 @@ export const EXERCISES = {
     primaryAngle: "elbowAngle",
     topAngle: 165,
     bottomAngle: 90,
-    goodDepth: 100
+    goodDepth: 100,
+    compoundJoints: [
+      { name: "torsoAngle", min: 0, max: 20, flag: "hip_sag" } 
+    ]
   },
-
   benchPress: {
     label: "BENCH PRESS",
     primaryAngle: "elbowAngle",
     topAngle: 160,
     bottomAngle: 95,
-    goodDepth: 85
+    goodDepth: 85,
+    compoundJoints: [
+      { name: "shoulderAbduction", min: 40, max: 75, flag: "elbow_flare" } 
+    ]
   },
-
   inclineBench: {
     label: "INCLINE BENCH",
     primaryAngle: "elbowAngle",
@@ -346,7 +274,6 @@ export const EXERCISES = {
     bottomAngle: 95,
     goodDepth: 75
   },
-
   declineBench: {
     label: "DECLINE BENCH",
     primaryAngle: "elbowAngle",
@@ -354,7 +281,6 @@ export const EXERCISES = {
     bottomAngle: 95,
     goodDepth: 85
   },
-
   chestPress: {
     label: "CHEST PRESS",
     primaryAngle: "elbowAngle",
@@ -362,7 +288,6 @@ export const EXERCISES = {
     bottomAngle: 95,
     goodDepth: 80
   },
-
   shoulderPress: {
     label: "SHOULDER PRESS",
     primaryAngle: "shoulderPressAngle",
@@ -370,7 +295,6 @@ export const EXERCISES = {
     bottomAngle: 85,
     goodDepth: 75
   },
-
   arnoldPress: {
     label: "ARNOLD PRESS",
     primaryAngle: "shoulderPressAngle",
@@ -378,7 +302,6 @@ export const EXERCISES = {
     bottomAngle: 70,
     goodDepth: 80
   },
-
   militaryPress: {
     label: "MILITARY PRESS",
     primaryAngle: "shoulderPressAngle",
@@ -386,7 +309,6 @@ export const EXERCISES = {
     bottomAngle: 70,
     goodDepth: 80
   },
-
   lateralRaise: {
     label: "LATERAL RAISE",
     primaryAngle: "shoulderAbduction",
@@ -394,7 +316,6 @@ export const EXERCISES = {
     bottomAngle: 10,
     goodDepth: 80
   },
-
   frontRaise: {
     label: "FRONT RAISE",
     primaryAngle: "shoulderFlexion",
@@ -402,7 +323,6 @@ export const EXERCISES = {
     bottomAngle: 10,
     goodDepth: 80
   },
-
   rearDeltFly: {
     label: "REAR DELT FLY",
     primaryAngle: "shoulderHorizontal",
@@ -420,9 +340,11 @@ export const EXERCISES = {
     primaryAngle: "elbowAngle",
     topAngle: 170,
     bottomAngle: 55,
-    goodDepth: 65
+    goodDepth: 65,
+    compoundJoints: [
+      { name: "shoulderFlexion", min: 0, max: 50, flag: "incomplete_pull" } 
+    ]
   },
-
   chinup: {
     label: "CHIN-UP",
     primaryAngle: "elbowAngle",
@@ -430,7 +352,6 @@ export const EXERCISES = {
     bottomAngle: 55,
     goodDepth: 65
   },
-
   latPulldown: {
     label: "LAT PULLDOWN",
     primaryAngle: "elbowAngle",
@@ -438,15 +359,16 @@ export const EXERCISES = {
     bottomAngle: 60,
     goodDepth: 70
   },
-
   row: {
     label: "ROW",
     primaryAngle: "elbowAngle",
     topAngle: 165,
     bottomAngle: 70,
-    goodDepth: 80
+    goodDepth: 80,
+    compoundJoints: [
+      { name: "shoulderFlexion", min: 0, max: 40, flag: "incomplete_pull" } 
+    ]
   },
-
   seatedRow: {
     label: "SEATED ROW",
     primaryAngle: "elbowAngle",
@@ -454,7 +376,6 @@ export const EXERCISES = {
     bottomAngle: 70,
     goodDepth: 80
   },
-
   bentOverRow: {
     label: "BENT OVER ROW",
     primaryAngle: "elbowAngle",
@@ -462,7 +383,6 @@ export const EXERCISES = {
     bottomAngle: 70,
     goodDepth: 80
   },
-
   facePull: {
     label: "FACE PULL",
     primaryAngle: "elbowAngle",
@@ -482,7 +402,6 @@ export const EXERCISES = {
     bottomAngle: 50,
     goodDepth: 60
   },
-
   hammerCurl: {
     label: "HAMMER CURL",
     primaryAngle: "elbowAngleCurl",
@@ -490,7 +409,6 @@ export const EXERCISES = {
     bottomAngle: 50,
     goodDepth: 60
   },
-
   preacherCurl: {
     label: "PREACHER CURL",
     primaryAngle: "elbowAngleCurl",
@@ -498,7 +416,6 @@ export const EXERCISES = {
     bottomAngle: 45,
     goodDepth: 55
   },
-
   concentrationCurl: {
     label: "CONCENTRATION CURL",
     primaryAngle: "elbowAngleCurl",
@@ -506,7 +423,6 @@ export const EXERCISES = {
     bottomAngle: 45,
     goodDepth: 55
   },
-
   tricepsPushdown: {
     label: "TRICEPS PUSHDOWN",
     primaryAngle: "elbowAngle",
@@ -514,7 +430,6 @@ export const EXERCISES = {
     bottomAngle: 70,
     goodDepth: 80
   },
-
   overheadExtension: {
     label: "OVERHEAD EXTENSION",
     primaryAngle: "elbowAngle",
@@ -522,7 +437,6 @@ export const EXERCISES = {
     bottomAngle: 60,
     goodDepth: 70
   },
-
   skullCrusher: {
     label: "SKULL CRUSHER",
     primaryAngle: "elbowAngle",
@@ -546,433 +460,82 @@ export function angleBetween(a, b, c) {
 }
 
 export function computeAngles(lm){
-
     const g=(i)=>lm[i];
-
     const virtual=buildVirtualJoints(lm);
 
-    //---------------------------------------------------
-    // Existing Angles
-    //---------------------------------------------------
-
-    const kneeAngleL=angleBetween(
-        g(LM.L_HIP),
-        g(LM.L_KNEE),
-        g(LM.L_ANKLE)
-    );
-
-    const kneeAngleR=angleBetween(
-        g(LM.R_HIP),
-        g(LM.R_KNEE),
-        g(LM.R_ANKLE)
-    );
-
-    const elbowAngleL=angleBetween(
-        g(LM.L_SHOULDER),
-        g(LM.L_ELBOW),
-        g(LM.L_WRIST)
-    );
-
-    const elbowAngleR=angleBetween(
-        g(LM.R_SHOULDER),
-        g(LM.R_ELBOW),
-        g(LM.R_WRIST)
-    );
-
-    const shoulderPressAngleL=
-        angleBetween(
-            g(LM.L_ELBOW),
-            g(LM.L_SHOULDER),
-            g(LM.L_HIP)
-        );
-
-    const shoulderPressAngleR=
-        angleBetween(
-            g(LM.R_ELBOW),
-            g(LM.R_SHOULDER),
-            g(LM.R_HIP)
-        );
-
-    const armRaiseAngleL=
-        angleBetween(
-            g(LM.L_HIP),
-            g(LM.L_SHOULDER),
-            g(LM.L_ELBOW)
-        );
-
-    const armRaiseAngleR=
-        angleBetween(
-            g(LM.R_HIP),
-            g(LM.R_SHOULDER),
-            g(LM.R_ELBOW)
-        );
-
-    const hipAngleL=
-        angleBetween(
-            g(LM.L_SHOULDER),
-            g(LM.L_HIP),
-            g(LM.L_KNEE)
-        );
-
-    const hipAngleR=
-        angleBetween(
-            g(LM.R_SHOULDER),
-            g(LM.R_HIP),
-            g(LM.R_KNEE)
-        );
-
-    const ankleAngleL=
-        angleBetween(
-            g(LM.L_KNEE),
-            g(LM.L_ANKLE),
-            {
-                x:g(LM.L_ANKLE).x,
-                y:g(LM.L_ANKLE).y-.2
-            }
-        );
-
-    const ankleAngleR=
-        angleBetween(
-            g(LM.R_KNEE),
-            g(LM.R_ANKLE),
-            {
-                x:g(LM.R_ANKLE).x,
-                y:g(LM.R_ANKLE).y-.2
-            }
-        );
-
-    //---------------------------------------------------
-    // NEW BIOMECHANICS
-    //---------------------------------------------------
+    const kneeAngleL=angleBetween(g(LM.L_HIP), g(LM.L_KNEE), g(LM.L_ANKLE));
+    const kneeAngleR=angleBetween(g(LM.R_HIP), g(LM.R_KNEE), g(LM.R_ANKLE));
+    const elbowAngleL=angleBetween(g(LM.L_SHOULDER), g(LM.L_ELBOW), g(LM.L_WRIST));
+    const elbowAngleR=angleBetween(g(LM.R_SHOULDER), g(LM.R_ELBOW), g(LM.R_WRIST));
+    const shoulderPressAngleL=angleBetween(g(LM.L_ELBOW), g(LM.L_SHOULDER), g(LM.L_HIP));
+    const shoulderPressAngleR=angleBetween(g(LM.R_ELBOW), g(LM.R_SHOULDER), g(LM.R_HIP));
+    const armRaiseAngleL=angleBetween(g(LM.L_HIP), g(LM.L_SHOULDER), g(LM.L_ELBOW));
+    const armRaiseAngleR=angleBetween(g(LM.R_HIP), g(LM.R_SHOULDER), g(LM.R_ELBOW));
+    const hipAngleL=angleBetween(g(LM.L_SHOULDER), g(LM.L_HIP), g(LM.L_KNEE));
+    const hipAngleR=angleBetween(g(LM.R_SHOULDER), g(LM.R_HIP), g(LM.R_KNEE));
+    const ankleAngleL=angleBetween(g(LM.L_KNEE), g(LM.L_ANKLE), {x:g(LM.L_ANKLE).x, y:g(LM.L_ANKLE).y-.2});
+    const ankleAngleR=angleBetween(g(LM.R_KNEE), g(LM.R_ANKLE), {x:g(LM.R_ANKLE).x, y:g(LM.R_ANKLE).y-.2});
 
     const shoulderMid=virtual.shoulderMid;
-
     const hipMid=virtual.hipMid;
+    const spineVector=vector(hipMid, shoulderMid);
+    const torsoAngle=Math.atan2(Math.abs(spineVector.x), Math.abs(spineVector.y))*180/Math.PI;
+    const neckAngle=Math.atan2(Math.abs(virtual.head.x-virtual.neck.x), Math.abs(virtual.head.y-virtual.neck.y))*180/Math.PI;
+    const shoulderLineAngle=Math.atan2(g(LM.R_SHOULDER).y-g(LM.L_SHOULDER).y, g(LM.R_SHOULDER).x-g(LM.L_SHOULDER).x)*180/Math.PI;
+    const pelvisTilt=Math.atan2(g(LM.R_HIP).y-g(LM.L_HIP).y, g(LM.R_HIP).x-g(LM.L_HIP).x)*180/Math.PI;
+    const shoulderAsym=Math.abs(g(LM.L_SHOULDER).y-g(LM.R_SHOULDER).y)*100;
+    const hipAsym=Math.abs(g(LM.L_HIP).y-g(LM.R_HIP).y)*100;
+    const kneeAsym=Math.abs(kneeAngleL-kneeAngleR);
+    const elbowAsym=Math.abs(elbowAngleL-elbowAngleR);
+    const ankleAsym=Math.abs(ankleAngleL-ankleAngleR);
+    const elbowFlare=Math.abs(armRaiseAngleL-armRaiseAngleR);
+    const kneeDistance=distance(g(LM.L_KNEE), g(LM.R_KNEE));
+    const ankleDistance=distance(g(LM.L_ANKLE), g(LM.R_ANKLE));
+    const valgusRatio=ankleDistance===0?1:kneeDistance/ankleDistance;
+    const spineLeanUpper=angleBetween(virtual.neck, virtual.upperSpine, virtual.midSpine);
+    const spineLeanLower=angleBetween(virtual.upperSpine, virtual.midSpine, virtual.lowerSpine);
+    const headOffset=distance(virtual.head, virtual.neck);
+    const wristAngleL=angleBetween(g(LM.L_ELBOW), g(LM.L_WRIST), {x: g(LM.L_WRIST).x, y: g(LM.L_WRIST).y - 0.15});
+    const wristAngleR=angleBetween(g(LM.R_ELBOW), g(LM.R_WRIST), {x: g(LM.R_WRIST).x, y: g(LM.R_WRIST).y - 0.15});
+    const wristAngle=(wristAngleL + wristAngleR) / 2;
+    const shoulderFlexionL=angleBetween(g(LM.L_ELBOW), g(LM.L_SHOULDER), virtual.pelvis);
+    const shoulderFlexionR=angleBetween(g(LM.R_ELBOW), g(LM.R_SHOULDER), virtual.pelvis);
+    const shoulderFlexion=(shoulderFlexionL + shoulderFlexionR) / 2;
+    const footWidth=distance(g(LM.L_ANKLE), g(LM.R_ANKLE));
+    const hipWidth=distance(g(LM.L_HIP), g(LM.R_HIP));
+    const stanceRatio=hipWidth === 0? 1: footWidth / hipWidth;
+    const bodyMidline={x:(g(LM.L_SHOULDER).x + g(LM.R_SHOULDER).x + g(LM.L_HIP).x + g(LM.R_HIP).x) / 4, y:(g(LM.L_HIP).y + g(LM.R_HIP).y) / 2};
+    const bodyRotation=Math.abs(shoulderLineAngle - pelvisTilt);
 
-    const spineVector=vector(
-        hipMid,
-        shoulderMid
-    );
-
-    const torsoAngle=
-        Math.atan2(
-            Math.abs(spineVector.x),
-            Math.abs(spineVector.y)
-        )*180/Math.PI;
-
-    const neckAngle=
-        Math.atan2(
-            Math.abs(
-                virtual.head.x-
-                virtual.neck.x
-            ),
-            Math.abs(
-                virtual.head.y-
-                virtual.neck.y
-            )
-        )*180/Math.PI;
-
-    const shoulderLineAngle=
-        Math.atan2(
-            g(LM.R_SHOULDER).y-
-            g(LM.L_SHOULDER).y,
-            g(LM.R_SHOULDER).x-
-            g(LM.L_SHOULDER).x
-        )*180/Math.PI;
-
-    const pelvisTilt=
-        Math.atan2(
-            g(LM.R_HIP).y-
-            g(LM.L_HIP).y,
-            g(LM.R_HIP).x-
-            g(LM.L_HIP).x
-        )*180/Math.PI;
-
-    const shoulderAsym=
-        Math.abs(
-            g(LM.L_SHOULDER).y-
-            g(LM.R_SHOULDER).y
-        )*100;
-
-    const hipAsym=
-        Math.abs(
-            g(LM.L_HIP).y-
-            g(LM.R_HIP).y
-        )*100;
-
-    const kneeAsym=
-        Math.abs(
-            kneeAngleL-
-            kneeAngleR
-        );
-
-    const elbowAsym=
-        Math.abs(
-            elbowAngleL-
-            elbowAngleR
-        );
-
-    const ankleAsym=
-        Math.abs(
-            ankleAngleL-
-            ankleAngleR
-        );
-
-    const elbowFlare=
-        Math.abs(
-            armRaiseAngleL-
-            armRaiseAngleR
-        );
-
-    const kneeDistance=
-        distance(
-            g(LM.L_KNEE),
-            g(LM.R_KNEE)
-        );
-
-    const ankleDistance=
-        distance(
-            g(LM.L_ANKLE),
-            g(LM.R_ANKLE)
-        );
-
-    const valgusRatio=
-        ankleDistance===0
-            ?1
-            :kneeDistance/ankleDistance;
-
-    //---------------------------------------------------
-    // Spine Curvature
-    //---------------------------------------------------
-
-    const spineLeanUpper=
-        angleBetween(
-            virtual.neck,
-            virtual.upperSpine,
-            virtual.midSpine
-        );
-
-    const spineLeanLower=
-        angleBetween(
-            virtual.upperSpine,
-            virtual.midSpine,
-            virtual.lowerSpine
-        );
-
-    //---------------------------------------------------
-    // Head Alignment
-    //---------------------------------------------------
-
-    const headOffset=
-        distance(
-            virtual.head,
-            virtual.neck
-        );
-//---------------------------------------------------
-// WRIST ANGLES
-//---------------------------------------------------
-
-const wristAngleL =
-    angleBetween(
-        g(LM.L_ELBOW),
-        g(LM.L_WRIST),
-        {
-            x: g(LM.L_WRIST).x,
-            y: g(LM.L_WRIST).y - 0.15
-        }
-    );
-
-const wristAngleR =
-    angleBetween(
-        g(LM.R_ELBOW),
-        g(LM.R_WRIST),
-        {
-            x: g(LM.R_WRIST).x,
-            y: g(LM.R_WRIST).y - 0.15
-        }
-    );
-
-const wristAngle =
-    (wristAngleL + wristAngleR) / 2;
-    //---------------------------------------------------
-// SHOULDER FLEXION
-//---------------------------------------------------
-
-const shoulderFlexionL =
-    angleBetween(
-        g(LM.L_ELBOW),
-        g(LM.L_SHOULDER),
-        virtual.pelvis
-    );
-
-const shoulderFlexionR =
-    angleBetween(
-        g(LM.R_ELBOW),
-        g(LM.R_SHOULDER),
-        virtual.pelvis
-    );
-
-const shoulderFlexion =
-    (shoulderFlexionL +
-     shoulderFlexionR) / 2;
-     //---------------------------------------------------
-// LEG WIDTH
-//---------------------------------------------------
-
-const footWidth =
-    distance(
-        g(LM.L_ANKLE),
-        g(LM.R_ANKLE)
-    );
-
-const hipWidth =
-    distance(
-        g(LM.L_HIP),
-        g(LM.R_HIP)
-    );
-
-const stanceRatio =
-    hipWidth === 0
-        ? 1
-        : footWidth / hipWidth;
-        //---------------------------------------------------
-// BAR PATH (BODY MIDLINE)
-//---------------------------------------------------
-
-const bodyMidline = {
-
-    x:
-        (g(LM.L_SHOULDER).x +
-         g(LM.R_SHOULDER).x +
-         g(LM.L_HIP).x +
-         g(LM.R_HIP).x) / 4,
-
-    y:
-        (g(LM.L_HIP).y +
-         g(LM.R_HIP).y) / 2
-};
-//---------------------------------------------------
-// BODY ROTATION
-//---------------------------------------------------
-
-const bodyRotation =
-    Math.abs(
-        shoulderLineAngle -
-        pelvisTilt
-    );
-
-//---------------------------------------------------
-// PER-SIDE ANGLES (used for side-view rep tracking)
-//---------------------------------------------------
-
-const leftKneeAngle = kneeAngleL;
-const rightKneeAngle = kneeAngleR;
-
-const leftHipAngle = hipAngleL;
-const rightHipAngle = hipAngleR;
-
-const leftElbowAngle = elbowAngleL;
-const rightElbowAngle = elbowAngleR;
-
-const leftAnkleAngle = ankleAngleL;
-const rightAnkleAngle = ankleAngleR;
-
-//---------------------------------------------------
-// PRIMARY (AVERAGED) ANGLES (used for front-view rep tracking)
-//---------------------------------------------------
-
-const kneeAngle = (kneeAngleL + kneeAngleR) / 2;
-const hipAngle = (hipAngleL + hipAngleR) / 2;
-const elbowAngle = (elbowAngleL + elbowAngleR) / 2;
-const ankleAngle = (ankleAngleL + ankleAngleR) / 2;
-
-//---------------------------------------------------
-// SHOULDER PLANE ANGLES (lateral raise / rear delt fly)
-//---------------------------------------------------
-
-// Arm lifted out to the side, away from the torso (lateral raise)
-const shoulderAbduction = (armRaiseAngleL + armRaiseAngleR) / 2;
-
-// Arm lifted backward/out while hinged forward (rear delt fly)
-const shoulderHorizontal = (armRaiseAngleL + armRaiseAngleR) / 2;
-
-    //---------------------------------------------------
-    // Return
-    //---------------------------------------------------
+    const leftKneeAngle = kneeAngleL;
+    const rightKneeAngle = kneeAngleR;
+    const leftHipAngle = hipAngleL;
+    const rightHipAngle = hipAngleR;
+    const leftElbowAngle = elbowAngleL;
+    const rightElbowAngle = elbowAngleR;
+    const leftAnkleAngle = ankleAngleL;
+    const rightAnkleAngle = ankleAngleR;
+    const kneeAngle = (kneeAngleL + kneeAngleR) / 2;
+    const hipAngle = (hipAngleL + hipAngleR) / 2;
+    const elbowAngle = (elbowAngleL + elbowAngleR) / 2;
+    const ankleAngle = (ankleAngleL + ankleAngleR) / 2;
+    const shoulderAbduction = (armRaiseAngleL + armRaiseAngleR) / 2;
+    const shoulderHorizontal = (armRaiseAngleL + armRaiseAngleR) / 2;
 
     return{
-
         virtual,
-
-        
-
         kneeAngleAsym:kneeAsym,
-
-        elbowAngleCurl:
-            (elbowAngleL+elbowAngleR)/2,
-
-        shoulderPressAngle:
-            (shoulderPressAngleL+
-            shoulderPressAngleR)/2,
-
-        armRaiseAngle:
-            (armRaiseAngleL+
-            armRaiseAngleR)/2,
-
-        frontRaiseAngle:
-            (armRaiseAngleL+
-            armRaiseAngleR)/2,
-        torsoAngle,
-
-        neckAngle,
-
-        shoulderLineAngle,
-
-        pelvisTilt,
-
-        shoulderAsym,
-
-        hipAsym,
-
-        elbowAsym,
-
-        ankleAsym,
-
-        elbowFlare,
-
-        valgusRatio,
-
-        spineLeanUpper,
-
-        spineLeanLower,
-
-        headOffset,
-        wristAngle,
-        shoulderFlexion,
-        leftKneeAngle,
-rightKneeAngle,
-leftHipAngle,
-rightHipAngle,
-leftElbowAngle,
-rightElbowAngle,
-leftAnkleAngle,
-rightAnkleAngle,
-kneeAngle,
-hipAngle,
-elbowAngle,
-ankleAngle,
-shoulderAbduction,
-shoulderHorizontal,
-
-
-stanceRatio,
-
-bodyMidline,
-
-bodyRotation,
-
+        elbowAngleCurl: (elbowAngleL+elbowAngleR)/2,
+        shoulderPressAngle: (shoulderPressAngleL+shoulderPressAngleR)/2,
+        armRaiseAngle: (armRaiseAngleL+armRaiseAngleR)/2,
+        frontRaiseAngle: (armRaiseAngleL+armRaiseAngleR)/2,
+        torsoAngle, neckAngle, shoulderLineAngle, pelvisTilt, shoulderAsym, hipAsym,
+        elbowAsym, ankleAsym, elbowFlare, valgusRatio, spineLeanUpper, spineLeanLower,
+        headOffset, wristAngle, shoulderFlexion, leftKneeAngle, rightKneeAngle, leftHipAngle,
+        rightHipAngle, leftElbowAngle, rightElbowAngle, leftAnkleAngle, rightAnkleAngle,
+        kneeAngle, hipAngle, elbowAngle, ankleAngle, shoulderAbduction, shoulderHorizontal,
+        stanceRatio, bodyMidline, bodyRotation,
     };
-
 }
 
 export function issueLabel(flag) {
@@ -988,6 +551,10 @@ export function issueLabel(flag) {
     hips: "Drive through your hips",
     heels: "Keep your heels planted",
     hip_sag: 'Lift your hips — keep a straight line',
+    hips_too_high: 'Drop your hips lower',
+    knees_too_straight: 'Bend knees more (Conventional)',
+    knees_too_bent: 'Keep legs straighter (RDL)',
+    incomplete_pull: 'Pull all the way to chest',
   };
   return lines[flag] || 'Adjust form';
 }
@@ -1005,6 +572,10 @@ export function issueVoiceLine(flag) {
     hips: "Drive your hips",
     heels: "Keep your heels down",
     hip_sag: 'Lift your hips',
+    hips_too_high: 'Drop your hips, dont just bend your knees',
+    knees_too_straight: 'Bend your knees more on the way down',
+    knees_too_bent: 'Keep your legs stiffer',
+    incomplete_pull: 'Full range of motion, pull to your chest',
   };
   return lines[flag] || 'Adjust form';
 }
@@ -1020,6 +591,10 @@ export function issueDescription(flag) {
     hips:"Drive the movement with your hips instead of your back.",
     heels:"Keep your heels planted throughout the movement.",
     hip_sag: 'Hips are sagging or piking — keep a straight line from shoulders to ankles.',
+    hips_too_high: 'Your knees are bending but your hips are staying too high. Sink your hips down and back.',
+    knees_too_straight: 'You are performing a stiff-leg deadlift. For a conventional deadlift, you must bend your knees to lower your hips.',
+    knees_too_bent: 'You are squatting the weight. For an RDL, keep your knees relatively stiff to stretch the hamstrings.',
+    incomplete_pull: 'You are relying entirely on elbow flexion. Pull your elbows further back to fully engage the lats.',
   };
   return lines[flag] || '';
 }

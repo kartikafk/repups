@@ -7,10 +7,16 @@ export default defineConfig({
     react(),
     basicSsl()
   ],
-
   server: {
     host: true,
     https: true,
-    port: 5173
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 })

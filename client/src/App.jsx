@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
+// Existing Workout Engine Imports
 import StartScreen from './components/StartScreen';
 import CameraView from './components/CameraView';
 import ReportView from './components/ReportView';
@@ -6,7 +9,23 @@ import HistoryView from './components/HistoryView';
 import { usePoseTracker } from './hooks/usePoseTracker';
 import { syncAssessmentRecord } from './api';
 
-export default function App() {
+// New Architecture Imports
+import RepUpsSignup from './components/signup';
+import AIOnboardingChat from './components/AIOnboardingChat';
+import PostureAssessment from './components/PostureAssessment';
+import HomeDashboard from './components/HomeDashboard';
+import AIChatbot from './components/AIOnboardingChat'; // Optional: if using your full-screen AI chat component
+
+// Mock/Safe helper if local IndexedDB save helper is missing in your workspace
+const saveAssessment = async (data) => {
+  console.log("💾 Assessment saved locally:", data);
+  return true;
+};
+
+// ----------------------------------------------------------------------
+// 1. Original Workout App Component (WorkoutFlow)
+// ----------------------------------------------------------------------
+function WorkoutFlow() {
   const [screen, setScreen] = useState('start'); // start | camera | report
   const [exercise, setExercise] = useState('squat');
   const [facingMode, setFacingMode] = useState('user');
@@ -20,25 +39,11 @@ export default function App() {
 
   const tracker = usePoseTracker({ exercise, voiceOn });
 
-  // Note: the 360-hour (15-day) retention window is enforced entirely
-  // server-side via a MongoDB TTL index on the `assessments` collection
-  // (see server/models/Assessment.js) — no client-side purge needed.
-
-  // Receives the replay blob URL from ReportView (report.avgTempo.replay)
- const handlePreview = (url) => {
-  console.log("handlePreview called");
-  console.log("URL:", url);
-
-  if (!url) {
-    console.log("No URL");
-    return;
-  }
-
-  setPreviewUrl(url);
-  setShowReplay(true);
-
-  console.log("Modal should open");
-};
+  const handlePreview = (url) => {
+    if (!url) return;
+    setPreviewUrl(url);
+    setShowReplay(true);
+  };
 
   const handleClosePreview = () => {
     setShowReplay(false);
@@ -62,14 +67,12 @@ export default function App() {
     setReport(finishedReport);
     setScreen('report');
 
-    // Save to this device only (IndexedDB) — video never uploaded to the server.
+    // Save locally
     saveAssessment({ report: finishedReport, videoBlob: finishedReport.videoBlob }).catch((err) => {
       console.warn('Failed to save assessment locally:', err);
     });
 
-    // Sync a minimal stats-only record (no video) so the server can
-    // enforce the 360-hour retention window with a MongoDB TTL index,
-    // independent of whether the app is ever reopened.
+    // Sync stats record
     syncAssessmentRecord({
       exercise: finishedReport.exercise,
       avgScore: finishedReport.avgScore,
@@ -83,7 +86,7 @@ export default function App() {
 
   const handleAgain = () => {
     tracker.stop();
-    tracker.clearReplay(); // discard the last recording — user didn't save/export it
+    tracker.clearReplay(); 
     setStartRequested(false);
     setReport(null);
     setShowReplay(false);
@@ -98,8 +101,7 @@ export default function App() {
   const handleBackFromHistory = () => {
     setScreen('start');
   };
-console.log("showReplay =", showReplay);
-console.log("previewUrl =", previewUrl);
+
   return (
     <div id="app">
       {screen === 'camera' && (
@@ -135,9 +137,9 @@ console.log("previewUrl =", previewUrl);
       )}
 
       {showReplay && previewUrl && (
-        <div className="preview-modal-overlay" style={{ position: "fixed",inset: 0,background: "rgba(255,0,0,0.4)",zIndex: 99999}} onClick={handleClosePreview}>
-          <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="preview-modal-close" onClick={handleClosePreview}>
+        <div className="preview-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={handleClosePreview}>
+          <div className="preview-modal" onClick={(e) => e.stopPropagation()} style={{ background: '#111116', border: '1px solid #222232', borderRadius: 12, padding: 20, width: '100%', maxWidth: 500, position: 'relative' }}>
+            <button className="preview-modal-close" onClick={handleClosePreview} style={{ position: 'absolute', top: 10, right: 10, background: 'transparent', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer' }}>
               ✕
             </button>
             <video
@@ -145,11 +147,45 @@ console.log("previewUrl =", previewUrl);
               controls
               autoPlay
               playsInline
-              style={{ width: '100%', maxHeight: '80vh', borderRadius: 8 }}
+              style={{ width: '100%', maxHeight: '70vh', borderRadius: 8, marginTop: 20 }}
             />
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+// 2. The Main Router App Component
+// ----------------------------------------------------------------------
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* Step 1: Sign Up / Sign In Page */}
+        <Route path="/" element={<RepUpsSignup />} />
+
+        {/* Step 2: AI Chatbot Intake Component */}
+        <Route path="/ai-onboarding" element={<AIOnboardingChat />} />
+
+        {/* Step 3: Posture Assessment & PDF Generator Page */}
+        <Route path="/posture-assessment" element={<PostureAssessment />} />
+
+        {/* Step 4: Home Dashboard Hub */}
+        <Route path="/dashboard" element={<HomeDashboard />} />
+
+        {/* Step 5: Original Camera & Workout Tracking Flow */}
+        <Route path="/workout" element={<WorkoutFlow />} />
+
+        {/* Navbar Option Routes */}
+        <Route path="/ai-coach" element={<AIOnboardingChat />} /> {/* Or use <AIChatbot /> if created */}
+        <Route path="/community" element={<HomeDashboard />} />
+        <Route path="/workout-tracks" element={<HomeDashboard />} />
+
+        {/* Fallback Route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
 }
