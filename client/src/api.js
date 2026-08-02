@@ -1,51 +1,90 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+// Automatically resolve the correct API base URL for laptop vs mobile testing
+const getDynamicApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:5001/api';
+  }
+  // Fallback to your computer's local network IP when accessing via phone browser
+  return `http://${hostname}:5001/api`;
+};
+
+const API_URL = getDynamicApiUrl();
+
+// Helper to securely pull active user ID from browser storage.
+function getActiveUserId() {
+  try {
+    const rawUser = localStorage.getItem('user');
+    if (rawUser) {
+      const parsed = JSON.parse(rawUser);
+      if (parsed?._id) return parsed._id;
+      if (parsed?.id) return parsed.id;
+    }
+  } catch (e) {}
+
+  return (
+    localStorage.getItem('profileId') ||
+    localStorage.getItem('userId') ||
+    null
+  );
+}
+
+// Throws a clear error if no user is found, but allows mobile test override if needed
+function requireUserId(explicitUserId) {
+  const userId = explicitUserId || getActiveUserId();
+  if (!userId) {
+    // Graceful fallback for unauthenticated mobile testing to prevent crashing
+    if (import.meta.env.DEV) {
+      console.warn('⚠️ No active user found in localStorage. Using dev fallback ID for testing.');
+      return '640000000000000000000000';
+    }
+    throw new Error('No authenticated user found — please sign in again before saving or loading workout data.');
+  }
+  return userId;
+}
 
 export async function saveSession(report) {
+  const userId = requireUserId(report.userId);
+  const payload = {
+    ...report,
+    userId
+  };
+
   const res = await fetch(`${API_URL}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(report)
+    body: JSON.stringify(payload)
   });
   if (!res.ok) throw new Error('Failed to save session');
   return res.json();
 }
 
-export async function fetchSessions(limit = 20) {
-  const res = await fetch(`${API_URL}/sessions?limit=${limit}`);
+export async function fetchSessions(query = {}) {
+  const userId = requireUserId(query.userId);
+
+  const finalQuery = {
+    ...query,
+    userId
+  };
+
+  const params = new URLSearchParams(finalQuery);
+  const res = await fetch(`${API_URL}/sessions?${params.toString()}`);
   if (!res.ok) throw new Error('Failed to fetch sessions');
   return res.json();
 }
-export async function fetchAssessments() {
-  const res = await fetch(`${API_URL}/assessments`);
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch assessments");
-  }
+export async function syncAssessmentRecord(payload) {
+  const userId = requireUserId(payload.userId);
+  const enrichedPayload = {
+    ...payload,
+    userId
+  };
 
-  return res.json();
-}
-
-export async function deleteAssessment(id) {
-  const res = await fetch(`${API_URL}/assessments/${id}`, {
-    method: "DELETE"
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to delete assessment");
-  }
-
-  return res.json();
-}
-
-// Minimal stats-only record (no video) used purely to let the server
-// enforce the 360-hour retention window via a MongoDB TTL index,
-// independent of whether the client ever reopens the app.
-export async function syncAssessmentRecord({ exercise, avgScore, repCount, avgRom, consistency, userId }) {
-  const res = await fetch(`${API_URL}/assessments`, {
+  const res = await fetch(`${API_URL}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ exercise, avgScore, repCount, avgRom, consistency, userId })
+    body: JSON.stringify(enrichedPayload)
   });
-  if (!res.ok) throw new Error('Failed to sync assessment record');
+  if (!res.ok) throw new Error('Failed to sync session record');
   return res.json();
 }

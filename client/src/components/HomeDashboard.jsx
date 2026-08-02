@@ -1,362 +1,532 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import "../styles.css"; // Ensure this matches your global/stylesheet path
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function HomeDashboard() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const canvasRef = useRef(null);
+const C = {
+  bg: "#0a0a0a", surface: "#111111", card: "#161616", border: "#222222",
+  lime: "#C8F135", red: "#FF4444", blue: "#3B82F6", purple: "#B892FF", orange: "#FF9F43",
+  muted: "#555555", text: "#EEEEEE", sub: "#888888",
+};
 
-  const [metrics, setMetrics] = useState({ postureScore: 84, steps: 0, caloriesBurned: 0, formAccuracy: "96%" });
-  const [showLogModal, setShowLogModal] = useState(false);
-  const [inputSteps, setInputSteps] = useState("");
-  const [inputCalories, setInputCalories] = useState("");
+const dashboardData = {
+  streak: 12,
+  postureScore: 78,
+  activeMinutesGoal: 60,
+  caloriesLogged: 1740,
+  calorieGoal: 2000,
+  todayPlan: { name: "Leg Day — Push Focus", exercisesDone: 0, exercisesTotal: 4, estMinutes: 45 },
+  coachTip: "Your posture score is up 6 points this week. Keep prioritizing the hip mobility routine before squats.",
+};
 
-  // AI Coach Widget States for Home Screen Integration
-  const [showAiModal, setShowAiModal] = useState(false);
-  const [aiQuery, setAiQuery] = useState("");
-  const [chatLog, setChatLog] = useState([
-    { role: "ai", text: "Hey athlete! I'm your real-time RepUps AI Coach. I've synced your posture score and telemetry. What form check or mobility issue can I help you troubleshoot right now?" }
-  ]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const chatEndRef = useRef(null);
+const quickLinks = [
+  { id: "posture", label: "Posture", icon: "🧍", color: C.blue, route: "/posture-assessment" },
+  { id: "workout", label: "Workout", icon: "🏋️", color: C.lime, route: "/session" },
+  { id: "ai-coach", label: "AI Coach", icon: "🤖", color: "#FF9F43", route: "/ai-coach" },
+  { id: "community", label: "Community", icon: "👥", color: "#B892FF", route: "/community" },
+];
 
-  const profileId = localStorage.getItem("profileId");
+const badgeDefs = [
+  { id: "streak7", label: "7 Day Streak", icon: "🔥", type: "streak", threshold: 7 },
+  { id: "streak14", label: "14 Day Streak", icon: "⚡", type: "streak", threshold: 14 },
+  { id: "streak30", label: "30 Day Streak", icon: "🏅", type: "streak", threshold: 30 },
+  { id: "gym10", label: "10 Gym Visits", icon: "🏢", type: "gym", threshold: 10 },
+  { id: "gym25", label: "Gym Regular", icon: "🏆", type: "gym", threshold: 25 },
+  { id: "prbreak", label: "PR Breaker", icon: "💥", type: "pr", threshold: 1 },
+];
 
-  // Center Background 3D Volumetric Solid Mannequin Mesh Engine
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    let animationFrameId;
+const epley1RM = (weight, reps) => Math.round(weight * (1 + reps / 30) * 10) / 10;
 
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
+const getMuscleGroup = (exerciseName = "") => {
+  const name = exerciseName.toLowerCase();
+  if (name.includes("squat") || name.includes("leg") || name.includes("calf") || name.includes("deadlift")) return "Legs";
+  if (name.includes("bench") || name.includes("push") || name.includes("chest") || name.includes("fly")) return "Chest";
+  if (name.includes("row") || name.includes("pull") || name.includes("lat") || name.includes("chin")) return "Back";
+  if (name.includes("press") || name.includes("shoulder") || name.includes("raise")) return "Shoulders";
+  if (name.includes("curl") || name.includes("tricep") || name.includes("extension")) return "Arms";
+  return "Core";
+};
 
-    const handleResize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    };
-    window.addEventListener("resize", handleResize);
+function Ring({ pct, color, size = 70, stroke = 7, icon, value, label }) {
+  const r = (size - stroke) / 2, circ = 2 * Math.PI * r;
+  const offset = circ - (Math.min(pct, 100) / 100) * circ;
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{ position: "relative", width: size, height: size, margin: "0 auto 8px" }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C.border} strokeWidth={stroke} />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+            strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: "stroke-dashoffset 1s ease-out" }} />
+        </svg>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.3 }}>{icon}</div>
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 11, color: C.sub }}>{label}</div>
+    </div>
+  );
+}
 
-    let angle = 0;
+function LineChart({ points, color, metricKey, unit }) {
+  const width = 640, height = 200, padX = 30, padY = 24;
+  if (!points || points.length === 0) return <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: C.sub, fontSize: 12 }}>No graph data available</div>;
 
-    const render = () => {
-      ctx.clearRect(0, 0, width, height);
-      angle += 0.005;
+  const values = points.map(p => p[metricKey] || 0);
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = max - min || 1;
+  // When there's no variance in the data (most commonly: only one session
+  // logged so far for this muscle group, or every logged value happens to
+  // be identical), `range` falls back to 1 and (value - min) is always 0.
+  // Left unhandled, that pins every point to the bottom baseline
+  // (height - padY) regardless of the actual value -- which is why
+  // switching muscle group or metric changed the number above the chart
+  // but the plotted point never visibly moved. Centering flat/single-point
+  // data instead reads correctly as "not enough variance yet" rather than
+  // silently misrepresenting the value as the lowest possible one.
+  const isFlat = max === min;
 
-      const centerX = width * 0.5;
-      const centerY = height * 0.38; 
-      const scale = width < 768 ? 1.1 : 1.45;
+  const coords = points.map((p, i) => {
+    const x = padX + (i / (points.length - 1 || 1)) * (width - padX * 2);
+    const y = isFlat
+      ? height / 2
+      : height - padY - ((p[metricKey] - min) / range) * (height - padY * 2);
+    return { x, y, ...p };
+  });
 
-      const levels = [
-        { y: -110, r: 16 }, 
-        { y: -90,  r: 12 }, 
-        { y: -75,  r: 15 }, 
-        { y: -55,  r: 30 }, 
-        { y: -25,  r: 24 }, 
-        { y: 0,    r: 20 }, 
-        { y: 30,   r: 26 }, 
-        { y: 65,   r: 16 }, 
-        { y: 105,  r: 12 }, 
-        { y: 145,  r: 10 }, 
-        { y: 175,  r: 8 }   
-      ];
-
-      const projectedLevels = levels.map((lvl) => {
-        const points = [];
-        const steps = 10;
-        for (let i = 0; i < steps; i++) {
-          const theta = (i / steps) * Math.PI * 2 + angle;
-          const x3d = Math.cos(theta) * lvl.r;
-          const z3d = Math.sin(theta) * lvl.r;
-          const y3d = lvl.y;
-
-          const cosA = Math.cos(angle * 0.4);
-          const sinA = Math.sin(angle * 0.4);
-          const rx = x3d * cosA - z3d * sinA;
-          const rz = x3d * sinA + z3d * cosA;
-
-          const fov = 450;
-          const depth = fov / (fov + rz + 200);
-          points.push({
-            x: centerX + rx * scale * depth,
-            y: centerY + y3d * scale * depth,
-            z: rz,
-            alpha: (rz + lvl.r) / (lvl.r * 2)
-          });
-        }
-        return points;
-      });
-
-      projectedLevels.forEach((ring) => {
-        ctx.strokeStyle = "rgba(200, 255, 0, 0.15)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ring.forEach((p, idx) => {
-          if (idx === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        });
-        ctx.closePath();
-        ctx.stroke();
-      });
-
-      for (let i = 0; i < projectedLevels[0].length; i++) {
-        ctx.strokeStyle = "rgba(138, 138, 171, 0.22)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        projectedLevels.forEach((ring, rIdx) => {
-          const p = ring[i];
-          if (rIdx === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        });
-        ctx.stroke();
-      }
-
-      const shoulderLeft = projectedLevels[3]?.[2];
-      if (shoulderLeft) {
-        ctx.fillStyle = "#c8ff00";
-        ctx.beginPath();
-        ctx.arc(shoulderLeft.x, shoulderLeft.y, 6, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = "rgba(200, 255, 0, 0.5)";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(shoulderLeft.x, shoulderLeft.y, 11, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    render();
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (profileId) {
-      fetch(`http://localhost:5001/api/dashboard/${profileId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.dashboardMetrics) {
-            setMetrics(data.dashboardMetrics);
-          }
-        })
-        .catch(err => console.log("Using cached dashboard telemetry"));
-    }
-  }, [profileId]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatLog, aiLoading]);
-
-  const handleLogActivity = async () => {
-    if (!profileId) return;
-
-    try {
-      const res = await fetch('http://localhost:5001/api/dashboard/log-activity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profileId,
-          steps: inputSteps ? Number(inputSteps) : metrics.steps,
-          caloriesBurned: inputCalories ? Number(inputCalories) : metrics.caloriesBurned
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMetrics(data.dashboardMetrics);
-        setShowLogModal(false);
-        setInputSteps("");
-        setInputCalories("");
-      }
-    } catch (err) {
-      alert("Failed to sync activity log with database.");
-    }
-  };
-
-  const handleSendAiMessage = async () => {
-    if (!aiQuery.trim() || aiLoading) return;
-    const query = aiQuery.trim();
-    setAiQuery("");
-
-    const updatedLog = [...chatLog, { role: "user", text: query }];
-    setChatLog(updatedLog);
-    setAiLoading(true);
-
-    try {
-      const res = await fetch('http://localhost:5001/api/ai-coach/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId, query })
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setChatLog([...updatedLog, { role: "ai", text: data.reply }]);
-      } else {
-        setChatLog([...updatedLog, { role: "ai", text: "I'm analyzing your current telemetry matrix. Keep your core braced and ensure your camera angle covers your full body." }]);
-      }
-    } catch (err) {
-      setChatLog([...updatedLog, { role: "ai", text: "Connection error with AI Core. Check your server status." }]);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const navItems = [
-    { label: "Posture", path: "/posture-assessment", icon: "📐" },
-    { label: "Workout", path: "/workout", icon: "🏋️" },
-    { label: "AI Coach", path: "/ai-coach", icon: "🤖" },
-    { label: "Community", path: "/community", icon: "👥" },
-    { label: "Tracks", path: "/workout-tracks", icon: "📋" }
-  ];
+  const pathD = coords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x} ${c.y}`).join(" ");
+  const areaD = `${pathD} L ${coords[coords.length - 1].x} ${height - padY} L ${coords[0].x} ${height - padY} Z`;
+  const maxPoint = coords.reduce((a, b) => ((b[metricKey] || 0) > (a[metricKey] || 0) ? b : a), coords[0]);
 
   return (
-    <div className="dashboard-layout" style={{ position: "relative", minHeight: "100vh", overflowX: "hidden" }}>
-      
-      {/* Center Background 3D Volumetric Mannequin Mesh Canvas */}
-      <canvas ref={canvasRef} className="bg-canvas" />
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", overflow: "visible" }}>
+      <defs>
+        <linearGradient id="rp-fade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {[0.25, 0.5, 0.75].map((f, i) => (
+        <line key={i} x1={padX} x2={width - padX} y1={padY + f * (height - padY * 2)} y2={padY + f * (height - padY * 2)}
+          stroke={C.border} strokeWidth="1" />
+      ))}
+      <path d={areaD} fill="url(#rp-fade)" />
+      <path d={pathD} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {coords.map((c, i) => (
+        <g key={i}>
+          <circle cx={c.x} cy={c.y} r={c[metricKey] === maxPoint[metricKey] ? 5 : 3.5}
+            fill={c[metricKey] === maxPoint[metricKey] ? color : C.bg}
+            stroke={color} strokeWidth="2" />
+          {c[metricKey] === maxPoint[metricKey] && (
+            <text x={c.x} y={c.y - 12} textAnchor="middle" fontSize="12" fontWeight="900" fill={color}
+              fontFamily="'Barlow Condensed',sans-serif">{c[metricKey]}{unit}</text>
+          )}
+        </g>
+      ))}
+      {coords.map((c, i) => (
+        (i === 0 || i === coords.length - 1 || i % 2 === 0) && (
+          <text key={"lbl"+i} x={c.x} y={height - 4} textAnchor="middle" fontSize="9" fill={C.sub}>{c.date}</text>
+        )
+      ))}
+    </svg>
+  );
+}
 
-      {/* Dashboard Main Content Body docked cleanly above the bottom navigation bar */}
-      <div className="dashboard-body" style={{ paddingBottom: "100px", boxSizing: "border-box" }}>
-        
-        <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
-          <button className="quick-log-btn" onClick={() => setShowLogModal(true)}>
-            + Log Activity Telemetry
-          </button>
-          
-          {/* Quick Trigger Button for the Embedded AI Coach Drawer */}
-          <button 
-            onClick={() => setShowAiModal(true)} 
-            style={{ background: "#16161f", border: "1px solid #c8ff0040", color: "#c8ff00", padding: "10px 16px", borderRadius: "10px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
-          >
-            🤖 Ask Live AI Coach
-          </button>
+function MuscleGroupMetricWidget({ userId }) {
+  const muscleGroups = ["Legs", "Chest", "Back", "Shoulders", "Arms", "Core"];
+  const [selectedMuscle, setSelectedMuscle] = useState("Legs");
+  const [metric, setMetric] = useState("oneRM"); // 'oneRM' | 'volume' | 'formAccuracy'
+  const [muscleLogs, setMuscleLogs] = useState({});
+
+  useEffect(() => {
+    if (!userId) return;
+    async function fetchAndAggregate() {
+      try {
+        const res = await fetch(`/api/sessions?userId=${userId}`);
+        if (res.ok) {
+          const sessions = await res.json();
+          const groupedByMuscle = {};
+
+          // Sort chronologically first so each session becomes its own point
+          // in the right order on the timeline.
+          //
+          // NOTE: previously sessions were bucketed by `date.slice(5)`
+          // ("MM-DD"), which merged every session from the same calendar day
+          // into a single point (max 1RM, summed volume, averaged form).
+          // That meant logging several sets/sessions in one day never
+          // produced more than one point on the graph -- the headline
+          // number would update, but the chart stayed flat with a single
+          // dot, which is exactly the bug reported. Each session now gets
+          // its own point instead of being merged with same-day sessions.
+          const sortedSessions = [...sessions].sort((a, b) => {
+            const ta = a.date ? new Date(a.date).getTime() : 0;
+            const tb = b.date ? new Date(b.date).getTime() : 0;
+            return ta - tb;
+          });
+
+          sortedSessions.forEach((s, i) => {
+            const muscle = s.muscleGroup || getMuscleGroup(s.exercise);
+            if (!groupedByMuscle[muscle]) groupedByMuscle[muscle] = [];
+
+            // Label is for display only now -- it no longer doubles as a
+            // merge key, so multiple sessions on the same day each still
+            // get plotted as separate points.
+            const label = s.date ? s.date.slice(5) : `#${i + 1}`;
+            const weight = Number(s.weight) || 0;
+            const reps = s.reps?.length || Number(s.repCount) || 1;
+            const volume = weight * reps;
+            const score = Number(s.avgScore) || Number(s.formAccuracy) || 85;
+            const oneRM = epley1RM(weight, reps);
+
+            groupedByMuscle[muscle].push({
+              date: label,
+              oneRM,
+              volume,
+              formAccuracy: Math.round(score),
+            });
+          });
+
+          setMuscleLogs(groupedByMuscle);
+        }
+      } catch (err) {
+        console.error("Failed to load aggregated muscle group metrics:", err);
+      }
+    }
+    fetchAndAggregate();
+  }, [userId]);
+
+  const metricConfig = {
+    oneRM: { label: "Peak Estimated 1RM", unit: "kg", color: C.lime },
+    volume: { label: "Total Volume Load", unit: "kg", color: C.blue },
+    formAccuracy: { label: "Avg Form Accuracy", unit: "%", color: C.purple }
+  };
+
+  const currentConfig = metricConfig[metric];
+  const activePoints = muscleLogs[selectedMuscle] || [];
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 900, fontSize: 22, letterSpacing: 1 }}>
+            MUSCLE GROUP PERFORMANCE
+          </div>
+          <div style={{ fontSize: 11, color: C.sub }}>Aggregated metrics across targeted muscle groups</div>
         </div>
 
-        {/* 2 x 2 Matrix Telemetry Grid */}
-        <div className="metrics-matrix">
-          <div className="metric-card">
-            <span className="metric-label">Structural Posture Score</span>
-            <span className="metric-value">{metrics.postureScore}/100</span>
-            <span className="metric-sub">Sagittal & Coronal parity</span>
-          </div>
-          <div className="metric-card">
-            <span className="metric-label">Daily Step Count</span>
-            <span className="metric-value">{metrics.steps.toLocaleString()}</span>
-            <span className="metric-sub">Live telemetry sync</span>
-          </div>
-          <div className="metric-card">
-            <span className="metric-label">Energy Expenditure</span>
-            <span className="metric-value">{metrics.caloriesBurned} kcal</span>
-            <span className="metric-sub">Estimated kinetic output</span>
-          </div>
-          <div className="metric-card">
-            <span className="metric-label">Form Accuracy Index</span>
-            <span className="metric-value">{metrics.formAccuracy}</span>
-            <span className="metric-sub">MediaPipe neural tracking</span>
-          </div>
+        <div style={{ display: "flex", background: C.surface, borderRadius: 8, padding: 3, border: `1px solid ${C.border}` }}>
+          {[
+            { id: "oneRM", label: "1RM" },
+            { id: "volume", label: "Volume" },
+            { id: "formAccuracy", label: "Form" }
+          ].map(m => (
+            <button key={m.id} onClick={() => setMetric(m.id)} style={{
+              background: metric === m.id ? currentConfig.color + "22" : "transparent",
+              border: metric === m.id ? `1px solid ${currentConfig.color}` : "none",
+              color: metric === m.id ? currentConfig.color : C.sub,
+              borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit"
+            }}>
+              {m.label}
+            </button>
+          ))}
         </div>
-
       </div>
 
-      {/* Fixed Responsive Bottom Navigation Bar */}
-      <div className="bottom-nav-bar">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+        {muscleGroups.map(muscle => (
+          <button key={muscle} onClick={() => setSelectedMuscle(muscle)} style={{
+            background: selectedMuscle === muscle ? currentConfig.color : C.surface,
+            border: `1px solid ${selectedMuscle === muscle ? currentConfig.color : C.border}`,
+            color: selectedMuscle === muscle ? "#000" : C.text, borderRadius: 99, padding: "6px 14px",
+            fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+            {muscle}
+          </button>
+        ))}
+      </div>
+
+      {activePoints.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "30px 0", color: C.sub, fontSize: 12 }}>
+          No session activity recorded for {selectedMuscle} yet. Complete a workout to view performance graphs!
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2 }}>{selectedMuscle} — {currentConfig.label}</div>
+              <div style={{ fontSize: 32, fontWeight: 900, color: currentConfig.color, fontFamily: "'Barlow Condensed',sans-serif" }}>
+                {activePoints[activePoints.length - 1]?.[metric]} {currentConfig.unit}
+              </div>
+            </div>
+          </div>
+
+          <LineChart points={activePoints} color={currentConfig.color} metricKey={metric} unit={currentConfig.unit} />
+
+          {activePoints.length === 1 && (
+            <div style={{ textAlign: "center", fontSize: 11, color: C.sub, marginTop: 10 }}>
+              Only one session logged for {selectedMuscle} so far — log another to start seeing a trend line.
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function CalorieTracker() {
+  const [logged, setLogged] = useState(dashboardData.caloriesLogged);
+  const [showForm, setShowForm] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [mealLabel, setMealLabel] = useState("");
+  const goal = dashboardData.calorieGoal;
+  const pct = Math.min((logged / goal) * 100, 100);
+
+  const submit = () => {
+    const kcal = Number(amount);
+    if (!kcal || kcal <= 0) return;
+    setLogged(l => l + kcal);
+    setAmount(""); setMealLabel(""); setShowForm(false);
+  };
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2 }}>Calories</div>
+        <span style={{ fontSize: 11, color: C.sub }}>{logged} / {goal} kcal</span>
+      </div>
+      <div style={{ background: C.border, borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 14 }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: "#FF9F43", borderRadius: 99, transition: "width 0.4s ease" }} />
+      </div>
+      {!showForm ? (
+        <button onClick={() => setShowForm(true)} style={{ width: "100%", background: "#FF9F4315", border: "1px solid #FF9F43", color: "#FF9F43", borderRadius: 8, padding: "10px 0", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>+ Log Calories</button>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input value={mealLabel} onChange={e => setMealLabel(e.target.value)} placeholder="Meal (optional)" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", color: C.text, fontSize: 12, outline: "none" }} />
+          <input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="kcal amount" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", color: C.text, fontSize: 12, outline: "none" }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { setShowForm(false); setAmount(""); setMealLabel(""); }} style={{ flex: 1, background: "transparent", border: `1px solid ${C.border}`, color: C.sub, borderRadius: 8, padding: "8px 0", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+            <button onClick={submit} style={{ flex: 1, background: "#FF9F43", border: "none", color: "#000", borderRadius: 8, padding: "8px 0", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>Add</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StreakBadges() {
+  const userProgress = { streak: dashboardData.streak, gymVisits: 6, prsBroken: 2 };
+  const progressFor = (b) => {
+    if (b.type === "streak") return userProgress.streak;
+    if (b.type === "gym") return userProgress.gymVisits;
+    if (b.type === "pr") return userProgress.prsBroken;
+    return 0;
+  };
+  const nextBadge = badgeDefs
+    .filter(b => progressFor(b) < b.threshold)
+    .sort((a, b) => (a.threshold - progressFor(a)) - (b.threshold - progressFor(b)))[0];
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2, marginBottom: 6 }}>Badges & Streak</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span style={{ fontSize: 34, fontWeight: 900, color: "#FF9F43", fontFamily: "'Barlow Condensed',sans-serif" }}>🔥 {userProgress.streak}</span>
+            <span style={{ fontSize: 12, color: C.sub }}>day streak</span>
+          </div>
+        </div>
+        {nextBadge && (
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: C.sub }}>Next badge</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.lime }}>{nextBadge.icon} {nextBadge.label}</div>
+            <div style={{ fontSize: 11, color: C.sub }}>{Math.max(nextBadge.threshold - progressFor(nextBadge), 0)} more to go</div>
+          </div>
+        )}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 10 }}>
+        {badgeDefs.map(b => {
+          const unlocked = progressFor(b) >= b.threshold;
           return (
-            <button 
-              key={item.path} 
-              className={`nav-btn ${isActive ? "nav-btn-active" : ""}`}
-              onClick={() => {
-                if (item.label === "AI Coach") {
-                  // Opens the quick live widget drawer or lets them navigate to full page via double-click if preferred
-                  setShowAiModal(true);
-                } else {
-                  navigate(item.path);
-                }
-              }}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
+            <div key={b.id} style={{ background: unlocked ? C.lime + "12" : C.surface, border: `1px solid ${unlocked ? C.lime + "55" : C.border}`, borderRadius: 12, padding: "14px 8px", textAlign: "center", opacity: unlocked ? 1 : 0.55 }}>
+              <div style={{ fontSize: 24, marginBottom: 6, filter: unlocked ? "none" : "grayscale(1)" }}>{b.icon}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: unlocked ? C.lime : C.sub, lineHeight: 1.3 }}>{b.label}</div>
+            </div>
           );
         })}
       </div>
+    </div>
+  );
+}
 
-      {/* Embedded Live AI Coach Chat Drawer / Modal */}
-      {showAiModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px", boxSizing: "border-box" }} onClick={() => setShowAiModal(false)}>
-          <div style={{ background: "#111116", border: "1px solid #222232", borderRadius: "16px", width: "100%", maxWidth: "550px", height: "500px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.8)" }} onClick={e => e.stopPropagation()}>
-            
-            {/* Header */}
-            <div style={{ padding: "16px 20px", background: "#16161f", borderBottom: "1px solid #222232", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#c8ff00", boxShadow: "0 0 8px #c8ff00" }} />
-                <span style={{ fontWeight: 800, fontSize: "15px", color: "#f0f0f5", fontFamily: "Syne" }}>RepUps Real-Time AI Coach</span>
-              </div>
-              <button onClick={() => setShowAiModal(false)} style={{ background: "transparent", border: "none", color: "#8a8aab", fontSize: "18px", cursor: "pointer" }}>✕</button>
+function ReferralSection() {
+  const [copied, setCopied] = useState(false);
+  const referralCode = "PRIYA-FIT240";
+  const copyCode = () => {
+    navigator.clipboard?.writeText(referralCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div style={{ background: `linear-gradient(135deg,${C.lime}14,${C.card})`, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
+      <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }}>Refer a Gym or Trainer</div>
+      <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5, maxWidth: 340, marginBottom: 12 }}>
+        Invite your gym or personal trainer to partner with RepUps. Earn <span style={{ color: C.lime, fontWeight: 800 }}>1 Month Free</span> for every partner that joins.
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 180, background: C.surface, border: `1px dashed ${C.lime}66`, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: C.lime, letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>{referralCode}</span>
+          <button onClick={copyCode} style={{ background: "transparent", border: "none", color: C.sub, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>{copied ? "✓ Copied" : "Copy"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
+
+export default function HomeDashboard() {
+  const navigate = useNavigate();
+
+  let parsedUser = { name: "Athlete" };
+  try {
+    const rawUser = localStorage.getItem("user");
+    if (rawUser) parsedUser = JSON.parse(rawUser);
+  } catch (err) {}
+
+  const userName = parsedUser.name || "Athlete";
+  const profileId = localStorage.getItem("profileId") || parsedUser._id || parsedUser.id;
+
+  const [postureScore, setPostureScore] = useState(dashboardData.postureScore);
+  const [realMetrics, setRealMetrics] = useState({ activeMinutes: 0, formAccuracy: 0, workoutsDone: 0 });
+
+  const d = dashboardData;
+  const planPct = (d.todayPlan.exercisesDone / d.todayPlan.exercisesTotal) * 100;
+
+  useEffect(() => {
+    const fetchPostureScore = async () => {
+      if (!profileId) return;
+      try {
+        const res = await fetch(`/api/posture/${profileId}/latest`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && data.record && typeof data.record.overallScore === "number") {
+          setPostureScore(data.record.overallScore);
+        }
+      } catch (err) {}
+    };
+    fetchPostureScore();
+  }, [profileId]);
+
+  useEffect(() => {
+    const fetchLiveTelemetry = async () => {
+      if (!profileId) return;
+      try {
+        const res = await fetch(`/api/sessions?userId=${profileId}`);
+        if (!res.ok) return;
+
+        const sessions = await res.json();
+        const sessionList = Array.isArray(sessions) ? sessions : [];
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todaySets = sessionList.filter(s => s.date === todayStr);
+
+        if (todaySets.length > 0) {
+          const totalAccuracy = todaySets.reduce((sum, set) => sum + (Number(set.avgScore) || 0), 0);
+          const avgAccuracy = Math.round(totalAccuracy / todaySets.length);
+          let calculatedMins = todaySets.length * 3;
+
+          setRealMetrics({ activeMinutes: calculatedMins, formAccuracy: avgAccuracy, workoutsDone: todaySets.length });
+        } else {
+          setRealMetrics({ activeMinutes: 0, formAccuracy: 0, workoutsDone: 0 });
+        }
+      } catch (err) {}
+    };
+
+    fetchLiveTelemetry();
+  }, [profileId]);
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'Barlow','Barlow Condensed',sans-serif", paddingBottom: "40px" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet"/>
+
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "28px 20px" }}>
+
+        {/* Dynamic Greeting */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 900, fontSize: 26, letterSpacing: 0.5 }}>
+              Welcome back, {userName}
             </div>
-
-            {/* Chat Stream */}
-            <div style={{ flex: 1, padding: "16px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px", scrollbarWidth: "none" }}>
-              <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-              {chatLog.map((msg, index) => (
-                <div key={index} style={{ alignSelf: msg.role === 'ai' ? 'flex-start' : 'flex-end', background: msg.role === 'ai' ? '#16161f' : '#c8ff00', color: msg.role === 'ai' ? '#f0f0f5' : '#000', padding: "10px 14px", borderRadius: "12px", fontSize: "13px", maxWidth: "85%", lineHeight: "1.4", fontWeight: msg.role === 'user' ? 600 : 400, border: `1px solid ${msg.role === 'ai' ? '#222232' : 'transparent'}` }}>
-                  {msg.text}
-                </div>
-              ))}
-              {aiLoading && <div style={{ alignSelf: 'flex-start', background: '#16161f', color: '#8a8aab', padding: "8px 12px", borderRadius: "10px", fontSize: "12px" }}>Analyzing your profile data & posture report...</div>}
-              <div ref={chatEndRef} />
-            </div>
-
-            {/* Input Bar */}
-            <div style={{ padding: "14px 16px", background: "#16161f", borderTop: "1px solid #222232", display: "flex", gap: "8px" }}>
-              <input 
-                type="text" 
-                placeholder="Ask about your posture, mobility, or workout plan..." 
-                value={aiQuery}
-                onChange={e => setAiQuery(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSendAiMessage()}
-                style={{ flex: 1, background: "#111116", border: "1px solid #222232", borderRadius: "10px", padding: "10px 14px", color: "#f0f0f5", fontSize: "13px", outline: "none" }}
-              />
-              <button onClick={handleSendAiMessage} style={{ background: "#c8ff00", color: "#000", border: "none", padding: "0 18px", borderRadius: "10px", fontWeight: 700, cursor: "pointer", fontFamily: "Syne" }}>
-                Send
-              </button>
-            </div>
-
+            <div style={{ fontSize: 12, color: C.sub }}>🔥 {d.streak} day streak — keep it going</div>
+          </div>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.lime, color: "#000", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
+            {userName.slice(0, 2).toUpperCase()}
           </div>
         </div>
-      )}
 
-      {/* Manual Activity Logging Modal */}
-      {showLogModal && (
-        <div className="modal-overlay" onClick={() => setShowLogModal(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <h3 className="modal-title">Log Telemetry Input</h3>
-            <div className="modal-fields">
-              <div>
-                <label className="modal-label">TOTAL STEPS</label>
-                <input className="modal-input" type="number" placeholder="e.g., 8500" value={inputSteps} onChange={e => setInputSteps(e.target.value)} />
-              </div>
-              <div>
-                <label className="modal-label">ACTIVE CALORIES (KCAL)</label>
-                <input className="modal-input" type="number" placeholder="e.g., 520" value={inputCalories} onChange={e => setInputCalories(e.target.value)} />
-              </div>
+        {/* ─── MUSCLE GROUP MULTI-METRIC PERFORMANCE WIDGET ─── */}
+        <MuscleGroupMetricWidget userId={profileId} />
+
+        {/* Real-Time Activity Rings */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2, marginBottom: 14, display: "flex", justifyContent: "space-between" }}>
+            <span>Today's Live Telemetry</span>
+            <span style={{ color: C.lime }}>{realMetrics.workoutsDone} Sets Analyzed</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-around" }}>
+            <Ring pct={(realMetrics.activeMinutes / d.activeMinutesGoal) * 100} color={C.lime} icon="⏱️" value={`${realMetrics.activeMinutes} min`} label="Active Minutes" />
+            <Ring pct={realMetrics.formAccuracy} color={C.blue} icon="🎯" value={`${realMetrics.formAccuracy}%`} label="Avg Form Accuracy" />
+          </div>
+        </div>
+
+        {/* Today's Plan + Posture Snapshot Cards */}
+        <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 260px", background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 18 }}>
+            <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2, marginBottom: 10 }}>Today's Plan</div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: C.text, marginBottom: 4 }}>{d.todayPlan.name}</div>
+            <div style={{ fontSize: 11, color: C.sub, marginBottom: 12 }}>~{d.todayPlan.estMinutes} min · {d.todayPlan.exercisesTotal} exercises</div>
+            <div style={{ background: C.border, borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 12 }}>
+              <div style={{ width: `${planPct}%`, height: "100%", background: C.lime, borderRadius: 99 }} />
             </div>
-            <div className="modal-actions">
-              <button className="cancel-btn" onClick={() => setShowLogModal(false)}>Cancel</button>
-              <button className="action-btn" onClick={handleLogActivity}>Commit Sync ✓</button>
+            <button onClick={() => navigate('/session')} style={{ width: "100%", background: C.lime, color: "#000", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+              Start Workout →
+            </button>
+          </div>
+
+          <div style={{ flex: "1 1 200px", background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 18, textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2, marginBottom: 10 }}>Posture Score</div>
+            <div style={{ fontSize: 38, fontWeight: 900, color: C.blue, fontFamily: "'Barlow Condensed',sans-serif" }}>{postureScore}</div>
+            <div style={{ fontSize: 11, color: C.sub, marginBottom: 12 }}>out of 100</div>
+            <button onClick={() => navigate('/posture-assessment')} style={{ width: "100%", background: "transparent", border: `1px solid ${C.blue}`, color: C.blue, borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+              View Assessment
+            </button>
+          </div>
+        </div>
+
+        {/* Calorie Tracker Component */}
+        <div style={{ marginBottom: 16 }}><CalorieTracker /></div>
+
+        {/* AI Coach Tip Note */}
+        <div style={{ background: `linear-gradient(135deg,${C.lime}18,${C.lime}05)`, border: `1px solid ${C.lime}33`, borderRadius: 16, padding: 18, marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ fontSize: 22 }}>🤖</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.lime, marginBottom: 4 }}>Coach's Note</div>
+              <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.6 }}>{d.coachTip}</div>
             </div>
           </div>
         </div>
-      )}
 
+        {/* Quick Navigation Links */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+          {quickLinks.map(l => (
+            <div key={l.id} onClick={() => navigate(l.route)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 8px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }}>
+              <div style={{ fontSize: 22, marginBottom: 6 }}>{l.icon}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: l.color }}>{l.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Badges & Referral Modules */}
+        <StreakBadges />
+        <ReferralSection />
+      </div>
     </div>
   );
 }

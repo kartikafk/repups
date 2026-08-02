@@ -1,335 +1,337 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles.css";
+
 const C = {
-  bg: "#08080c",
-  surface: "#111116",
+  bg: "#0a0a0f",
+  surface: "#111118",
   card: "#16161f",
-  border: "#222232",
+  border: "#1e1e2e",
   accent: "#c8ff00",
   accentDim: "#8fb200",
-  red: "#ff3c5a",
+  blue: "#3c8fff",
+  gold: "#ffb800",
   textPrimary: "#f0f0f5",
-  textSecondary: "#8a8aab",
-  textMuted: "#3a3a52",
+  textSecondary: "#7a7a9a",
+  textMuted: "#3a3a5a",
 };
 
-export default function Signup() {
+const trainerFeatures = [
+  { icon: "👥", title: "Client Management", desc: "Full database of clients with progress tracking and streak analytics." },
+  { icon: "🧬", title: "AI Diet Plans", desc: "Auto-generate cutting, maintenance, or bulk plans via Mifflin-St Jeor." },
+  { icon: "📊", title: "Growth Analytics", desc: "Visual dashboards for calorie adherence, workout frequency, and PRs." },
+];
+
+const clientFeatures = [
+  { icon: "⚡", title: "AI Workout Plans", desc: "Beginner to Advanced splits generated in seconds by your AI trainer." },
+  { icon: "📋", title: "Workout Logger", desc: "Track every set, rep, weight and calorie in real-time." },
+  { icon: "🌐", title: "Community", desc: "Rate gyms, find local events, and connect with other athletes." },
+];
+
+const specialties = ["Powerlifting", "MMA", "Calisthenics", "CrossFit", "Bodybuilding", "Yoga", "Running"];
+const goals = ["Cut", "Maintain", "Bulk", "Athletic Performance"];
+
+function Field({ label, children }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.6px", color: C.textSecondary, textTransform: "uppercase" }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+const inputStyle = {
+  background: C.card,
+  border: `1px solid ${C.border}`,
+  borderRadius: 10,
+  color: C.textPrimary,
+  fontSize: 14,
+  padding: "13px 16px",
+  width: "100%",
+  outline: "none",
+  fontFamily: "inherit",
+};
+
+export default function RepUpsSignup() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState("signup");
+  
+  const [mode, setMode] = useState("signin");
+  const [role, setRole] = useState("trainer"); 
+  const [showPass, setShowPass] = useState(false);
+  const [selectedSpecialties, setSelectedSpecialties] = useState([]);
+  const [selectedGoal, setSelectedGoal] = useState("");
   const [step, setStep] = useState(1);
+  const [form, setForm] = useState({ name: "", email: "", password: "", gym: "", experience: "", weight: "", height: "", age: "" });
+
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const totalSteps = 3;
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
 
-  const [form, setForm] = useState({
-    emailOrMobile: "", password: "", name: "", profession: "Desk Worker / Professional",
-    height: "", weight: "", age: "", gender: "male", bodyFat: "", bodyType: "athletic",
-    experience: "beginner", injuryHistory: "None", flexibility: "average", mobility: "average", strengthLevel: "novice",
-    fitnessGoal: "hypertrophy", availableEquipment: ["gym"]
-  });
+  // Handle window resizing for full responsiveness
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 900);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-  const update = (field, val) => {
-    setForm(p => ({ ...p, [field]: val }));
-    if (error) setError("");
-  };
+  const isTrainer = role === "trainer";
+  const accentColor = isTrainer ? C.accent : C.blue;
+  const features = isTrainer ? trainerFeatures : clientFeatures;
+  const totalSteps = 2;
 
-  const toggleEquipment = (eq) => {
-    setForm(p => ({
-      ...p,
-      availableEquipment: p.availableEquipment.includes(eq)
-        ? p.availableEquipment.filter(x => x !== eq)
-        : [...p.availableEquipment, eq]
-    }));
-  };
+  const toggleSpecialty = (s) =>
+    setSelectedSpecialties((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
 
-  const handleSignIn = async () => {
-    if (!form.emailOrMobile || !form.password) {
-      setError("Please fill out your email/mobile and password.");
-      return;
-    }
+  const handleAuthSubmit = async () => {
     setError("");
+    setLoading(true);
+    
+    // 🔑 STEP 1: Securely wipe out any residual user storage from prior sessions to prevent account data bleed
+    localStorage.removeItem("user");
+    localStorage.removeItem("profileId");
+    localStorage.removeItem("userId");
+
+    const endpoint = mode === "signin" ? "/api/auth/signin" : "/api/auth/register";
+    const payload = mode === "signin"
+      ? { email: form.email, password: form.password, role }
+      : { role, name: form.name, email: form.email, password: form.password, gym: form.gym, experience: form.experience, specialties: selectedSpecialties, weight: form.weight, height: form.height, age: form.age, goal: selectedGoal };
 
     try {
-      const response = await fetch('/api/profile/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailOrMobile: form.emailOrMobile, password: form.password })
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-      const data = await response.json();
-      if (response.ok) {
-        localStorage.setItem("profileId", data.profileId);
-        localStorage.setItem("userName", data.user?.name || "");
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Server didn't return JSON. Ensure your Node backend is running.");
+      }
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        const loggedUser = data.user || data;
+        
+        // 🔑 STEP 2: Extract explicit MongoDB identifiers safely
+        const uniqueId = loggedUser._id || loggedUser.id || data.profileId;
+
+        if (uniqueId) {
+          localStorage.setItem("user", JSON.stringify(loggedUser));
+          localStorage.setItem("profileId", uniqueId);
+          localStorage.setItem("userId", uniqueId);
+        } else {
+          throw new Error("Authentication response did not contain a valid user ID.");
+        }
+
         navigate('/dashboard'); 
       } else {
-        setError(data.error || "Sign in failed. Please check credentials.");
+        setError(data.error || "Authentication failed");
       }
     } catch (err) {
-      setError("Unable to connect to backend server.");
-    }
-  };
-
-  const handleNextStep1 = async () => {
-    if (!form.name || !form.emailOrMobile || !form.password || !form.profession) {
-      setError("Please fill out your name, profession, email/mobile, and password.");
-      return;
-    }
-    setError("");
-
-    try {
-      const response = await fetch('/api/profile/check-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailOrMobile: form.emailOrMobile })
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "An account with this email or mobile number already exists.");
-        return;
-      }
-
-      setError("");
-      setStep(2);
-    } catch (err) {
-      setError("Unable to verify account uniqueness with server.");
-    }
-  };
-
-  const handleNextStep2 = () => {
-    if (!form.height || !form.weight || !form.age || !form.bodyFat) {
-      setError("Please fill in all core body metrics (height, weight, age, body fat).");
-      return;
-    }
-    setError("");
-    setStep(3);
-  };
-
-  const handleComplete = async () => {
-    if (!form.fitnessGoal || form.availableEquipment.length === 0) {
-      setError("Please select a fitness goal and equipment option.");
-      return;
-    }
-    setError("");
-
-    try {
-      const response = await fetch('/api/profile/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      });
-      const data = await response.json();
-      if (response.ok) {
-        localStorage.setItem("profileId", data.profileId);
-        localStorage.setItem("userName", data.user?.name || form.name);
-        navigate('/ai-onboarding'); 
-      } else {
-        setError(data.error || "Registration failed on backend.");
-      }
-    } catch (err) {
-      setError("Unable to connect to backend server.");
+      console.error("Network Error:", err);
+      setError(err.message || "Unable to connect to backend server.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", width: "100vw", background: C.bg, color: C.textPrimary, overflowX: "hidden" }}>
-      
-      {/* Brand Panel */}
-      <div style={{ flex: 1, background: C.surface, padding: "40px", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", borderRight: `1px solid ${C.border}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, zIndex: 1 }}>
-          {/* Logo container with neon green background & shadow glow */}
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: C.accent, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", boxShadow: `0 0 15px ${C.accent}40`, border: `1px solid ${C.accent}` }}>
-            <img src="/repup-logo.jpeg" alt="RepUps Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+    <div style={{ 
+      display: "flex", 
+      flexDirection: isMobile ? "column" : "row", 
+      minHeight: "100vh", 
+      background: C.bg, 
+      color: C.textPrimary, 
+      fontFamily: "'DM Sans', sans-serif",
+      overflowY: "auto" 
+    }}>
+      {/* ── LEFT PANEL (Hidden or stacked on mobile) ──────────────────────── */}
+      {!isMobile && (
+        <div style={{ flex: 1.1, background: C.surface, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", padding: 48, position: "relative", overflow: "hidden" }}>
+          <div style={{
+            position: "absolute", inset: 0, pointerEvents: "none",
+            backgroundImage: `linear-gradient(${C.border}55 1px, transparent 1px), linear-gradient(90deg, ${C.border}55 1px, transparent 1px)`,
+            backgroundSize: "48px 48px",
+          }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40, position: "relative", zIndex: 1 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: C.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>💪</div>
+            <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: "-0.5px", fontFamily: "Syne, sans-serif" }}>Rep<span style={{ color: C.accent }}>Ups</span></span>
           </div>
-          <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: "-0.5px", fontFamily: "sans-serif" }}>
-            Rep<span style={{ color: C.accent }}>Ups</span>
-          </span>
+
+          <div style={{ position: "relative", zIndex: 1, flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ marginBottom: 8 }}>
+              <span style={{ background: `${accentColor}18`, color: accentColor, fontSize: 11, fontWeight: 700, letterSpacing: "1px", padding: "4px 12px", borderRadius: 20, border: `1px solid ${accentColor}33` }}>
+                {isTrainer ? "FOR COACHES & TRAINERS" : "FOR ATHLETES & CLIENTS"}
+              </span>
+            </div>
+            <h1 style={{ fontSize: 36, fontWeight: 800, lineHeight: 1.15, marginBottom: 16, marginTop: 14, fontFamily: "Syne, sans-serif" }}>
+              {isTrainer ? <><>Build your<br /></><span style={{ color: C.accent }}>fitness empire</span></> : <><>Train smarter,<br /></><span style={{ color: C.blue }}>not harder</span></>}
+            </h1>
+            <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6, marginBottom: 32, maxWidth: 380 }}>
+              {isTrainer ? "The all-in-one platform to manage clients, assign AI-powered diet & workout plans, and grow your coaching business." : "Get AI-personalized workouts, track every rep, find nearby gyms and events — all in one place."}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {features.map((f, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: `${accentColor}15`, border: `1px solid ${accentColor}25`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{f.icon}</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2, fontFamily: "Syne, sans-serif" }}>{f.title}</div>
+                    <div style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.4 }}>{f.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RIGHT PANEL (Full width on mobile, split on desktop) ───────────── */}
+      <div style={{ 
+        flex: 1, 
+        display: "flex", 
+        flexDirection: "column", 
+        justifyContent: "center", 
+        padding: isMobile ? "24px 20px" : 48, 
+        width: "100%",
+        maxWidth: isMobile ? "100%" : 520, 
+        margin: "0 auto",
+        boxSizing: "border-box"
+      }}>
+        {isMobile && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: C.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>💪</div>
+            <span style={{ fontWeight: 800, fontSize: 18, fontFamily: "Syne, sans-serif" }}>Rep<span style={{ color: C.accent }}>Ups</span></span>
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: isMobile ? 24 : 32, alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={() => setRole(role === "trainer" ? "client" : "trainer")} style={{ fontSize: 11, background: "none", border: `1px solid ${C.border}`, padding: "6px 10px", borderRadius: 6, color: C.textSecondary, cursor: "pointer" }}>
+            Switch to {role === "trainer" ? "Client" : "Trainer"} mode
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, color: C.textSecondary }}>{mode === "signin" ? "New here?" : "Have account?"}</span>
+            <button onClick={() => { setMode((m) => (m === "signin" ? "signup" : "signin")); setStep(1); setError(""); }} style={{ background: "none", border: `1px solid ${accentColor}55`, borderRadius: 8, padding: "6px 14px", color: accentColor, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
+              {mode === "signin" ? "Register" : "Sign in"}
+            </button>
+          </div>
         </div>
 
-        <div style={{ zIndex: "1", maxWidth: 420, margin: "auto 0" }}>
-          <span style={{ background: `${C.accent}15`, color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "1px", padding: "4px 12px", borderRadius: 20, border: `1px solid ${C.accent}30` }}>
-            AI BIOMECHANICS ENGINE
-          </span>
-          <h1 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 800, lineHeight: 1.15, marginTop: 16, marginBottom: 12 }}>
-            Calibrate your <span style={{ color: C.accent }}>digital twin</span>
-          </h1>
-          <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.6 }}>
-            Track rep accuracy, form compensation, and performance metrics in real-time using computer vision.
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, marginBottom: 6, fontFamily: "Syne, sans-serif" }}>
+            {mode === "signin" ? `Welcome back${isTrainer ? ", Coach" : ""} 👋` : step === 1 ? "Create account" : isTrainer ? "Your expertise" : "Your profile"}
+          </h2>
+          <p style={{ fontSize: 13, color: C.textSecondary }}>
+            {mode === "signin" ? `Sign in as a ${isTrainer ? "Trainer" : "Client"}` : step === 1 ? "Fill in your details to start" : "Personalize your experience"}
           </p>
         </div>
-        <div style={{ fontSize: 12, color: C.textSecondary }}>© 2026 RepUps Systems</div>
-      </div>
 
-      {/* Form Panel */}
-      <div style={{ width: "520px", background: C.bg, padding: "50px 40px", display: "flex", flexDirection: "column", justifyContent: "center", overflowY: "auto" }}>
-        
-        {/* Tabs Bar */}
-        <div style={{ display: "flex", background: C.surface, padding: "4px", borderRadius: "12px", marginBottom: "24px", border: `1px solid ${C.border}` }}>
-          <button style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", background: mode === "signin" ? C.card : "transparent", color: mode === "signin" ? C.textPrimary : C.textSecondary, fontWeight: 600, cursor: "pointer" }} onClick={() => { setMode("signin"); setError(""); }}>Sign In</button>
-          <button style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", background: mode === "signup" ? C.card : "transparent", color: mode === "signup" ? C.textPrimary : C.textSecondary, fontWeight: 600, cursor: "pointer" }} onClick={() => { setMode("signup"); setStep(1); setError(""); }}>Create Account</button>
-        </div>
-
-        {mode === "signin" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Welcome Back</h2>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Email or Mobile Number</label>
-              <input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "12px", color: C.textPrimary, outline: "none" }} type="text" placeholder="name@example.com" value={form.emailOrMobile} onChange={e => update('emailOrMobile', e.target.value)} />
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Password</label>
-              <input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "12px", color: C.textPrimary, outline: "none" }} type="password" placeholder="••••••••" value={form.password} onChange={e => update('password', e.target.value)} />
-            </div>
-
-            {error && <div style={{ background: `${C.red}15`, border: `1px solid ${C.red}30`, color: C.red, padding: "10px", borderRadius: "8px", fontSize: 13 }}>{error}</div>}
-
-            <button style={{ background: C.accent, color: "#000", border: "none", padding: "14px", borderRadius: "10px", fontWeight: 700, cursor: "pointer", marginTop: "8px" }} onClick={handleSignIn}>
-              Sign In →
-            </button>
+        {error && (
+          <div style={{ background: "#ff3c5a15", border: "1px solid #ff3c5a50", color: "#ff3c5a", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
+            {error}
           </div>
         )}
 
         {mode === "signup" && (
-          <div>
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, color: C.textSecondary, marginBottom: 6, fontWeight: 600 }}>STEP {step} OF {totalSteps}</div>
-              <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
-                {[1, 2, 3].map(i => (
-                  <div key={i} style={{ flex: 1, height: "4px", background: i <= step ? C.accent : C.border, borderRadius: "2px" }} />
-                ))}
-              </div>
-              <h2 style={{ fontSize: 22, fontWeight: 800 }}>
-                {step === 1 && "Credentials & Identity"}
-                {step === 2 && "Physical Profile & Metrics"}
-                {step === 3 && "Goals & Setup"}
-              </h2>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              {Array.from({ length: totalSteps }).map((_, i) => (
+                <div key={i} style={{ height: 4, borderRadius: 2, width: i + 1 === step ? 24 : 8, background: i + 1 <= step ? accentColor : C.border, transition: "all 0.3s" }} />
+              ))}
             </div>
-
-            {step === 1 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Full Name</label>
-                  <input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "12px", color: C.textPrimary, outline: "none" }} type="text" placeholder="John Doe" value={form.name} onChange={e => update('name', e.target.value)} />
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Profession / Lifestyle</label>
-                  <input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "12px", color: C.textPrimary, outline: "none" }} type="text" placeholder="Software Engineer, Desk Worker, etc." value={form.profession} onChange={e => update('profession', e.target.value)} />
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Email or Mobile Number</label>
-                  <input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "12px", color: C.textPrimary, outline: "none" }} type="text" placeholder="name@example.com" value={form.emailOrMobile} onChange={e => update('emailOrMobile', e.target.value)} />
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Password</label>
-                  <input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "12px", color: C.textPrimary, outline: "none" }} type="password" placeholder="Create password" value={form.password} onChange={e => update('password', e.target.value)} />
-                </div>
-
-                {error && <div style={{ background: `${C.red}15`, border: `1px solid ${C.red}30`, color: C.red, padding: "10px", borderRadius: "8px", fontSize: 13 }}>{error}</div>}
-
-                <button style={{ background: C.accent, color: "#000", border: "none", padding: "14px", borderRadius: "10px", fontWeight: 700, cursor: "pointer", marginTop: "8px" }} onClick={handleNextStep1}>Next Step →</button>
-              </div>
-            )}
-
-            {step === 2 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}><label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Height (cm)</label><input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} type="number" placeholder="178" value={form.height} onChange={e => update('height', e.target.value)} /></div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}><label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Weight (kg)</label><input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} type="number" placeholder="75" value={form.weight} onChange={e => update('weight', e.target.value)} /></div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}><label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Age</label><input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} type="number" placeholder="24" value={form.age} onChange={e => update('age', e.target.value)} /></div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Gender</label>
-                    <select style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} value={form.gender} onChange={e => update('gender', e.target.value)}>
-                      <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Body Fat %</label>
-                    <input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} type="number" placeholder="15" value={form.bodyFat} onChange={e => update('bodyFat', e.target.value)} />
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Experience</label>
-                    <select style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} value={form.experience} onChange={e => update('experience', e.target.value)}>
-                      <option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option>
-                    </select>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Strength Level</label>
-                    <select style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} value={form.strengthLevel} onChange={e => update('strengthLevel', e.target.value)}>
-                      <option value="novice">Novice</option><option value="intermediate">Intermediate</option><option value="proficient">Proficient</option><option value="elite">Elite</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Flexibility</label>
-                    <select style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} value={form.flexibility} onChange={e => update('flexibility', e.target.value)}>
-                      <option value="poor">Poor</option><option value="average">Average</option><option value="good">Good</option><option value="excellent">Excellent</option>
-                    </select>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Mobility</label>
-                    <select style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} value={form.mobility} onChange={e => update('mobility', e.target.value)}>
-                      <option value="poor">Poor</option><option value="average">Average</option><option value="good">Good</option><option value="excellent">Excellent</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: C.textSecondary }}>Injury History</label>
-                  <input style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px", color: C.textPrimary, outline: "none" }} type="text" placeholder="None or specify" value={form.injuryHistory} onChange={e => update('injuryHistory', e.target.value)} />
-                </div>
-
-                {error && <div style={{ background: `${C.red}15`, border: `1px solid ${C.red}30`, color: C.red, padding: "10px", borderRadius: "8px", fontSize: 13 }}>{error}</div>}
-
-                <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                  <button onClick={() => { setStep(1); setError(""); }} style={{ width: 48, background: C.card, border: `1px solid ${C.border}`, borderRadius: "10px", color: C.textSecondary, cursor: "pointer", fontSize: 16 }}>←</button>
-                  <button style={{ flex: 1, background: C.accent, color: "#000", border: "none", padding: "12px", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }} onClick={handleNextStep2}>Next Step →</button>
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Fitness Goal</label>
-                  <select style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "12px", color: C.textPrimary, outline: "none" }} value={form.fitnessGoal} onChange={e => update('fitnessGoal', e.target.value)}>
-                    <option value="fat loss">Fat Loss</option><option value="hypertrophy">Hypertrophy</option><option value="strength">Strength</option><option value="sports">Sports</option><option value="rehab">Rehab</option>
-                  </select>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.textSecondary }}>Available Equipment</label>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {["gym", "home workout", "dumbbells", "bodyweight", "resistance bands"].map(eq => (
-                      <button key={eq} type="button" style={{ background: form.availableEquipment.includes(eq) ? `${C.accent}25` : C.surface, border: `1px solid ${form.availableEquipment.includes(eq) ? C.accent : C.border}`, color: form.availableEquipment.includes(eq) ? C.accent : C.textSecondary, padding: "8px 14px", borderRadius: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer" }} onClick={() => toggleEquipment(eq)}>
-                        {eq.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {error && <div style={{ background: `${C.red}15`, border: `1px solid ${C.red}30`, color: C.red, padding: "10px", borderRadius: "8px", fontSize: 13 }}>{error}</div>}
-
-                <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                  <button onClick={() => { setStep(2); setError(""); }} style={{ width: 48, background: C.card, border: `1px solid ${C.border}`, borderRadius: "10px", color: C.textSecondary, cursor: "pointer", fontSize: 16 }}>←</button>
-                  <button style={{ flex: 1, background: C.accent, color: "#000", border: "none", padding: "14px", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }} onClick={handleComplete}>Complete & Calibrate ✓</button>
-                </div>
-              </div>
-            )}
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 6 }}>Step {step} of {totalSteps}</div>
           </div>
         )}
 
+        {/* SIGN IN */}
+        {mode === "signin" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <Field label="Email address"><input type="email" placeholder={isTrainer ? "coach@example.com" : "athlete@example.com"} style={inputStyle} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></Field>
+            <Field label="Password">
+              <div style={{ position: "relative" }}>
+                <input type={showPass ? "text" : "password"} placeholder="••••••••" style={{ ...inputStyle, paddingRight: 44 }} value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
+                <button onClick={() => setShowPass((p) => !p)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: C.textSecondary, fontSize: 18 }}>{showPass ? "🙈" : "👁"}</button>
+              </div>
+            </Field>
+            <button onClick={handleAuthSubmit} disabled={loading} style={{ width: "100%", padding: 13, border: "none", borderRadius: 12, cursor: loading ? "not-allowed" : "pointer", fontFamily: "Syne, sans-serif", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: accentColor, color: isTrainer ? "#000" : "#fff", marginTop: 6, opacity: loading ? 0.7 : 1 }}>
+              {loading ? "Signing In..." : `Sign In as ${isTrainer ? "Trainer" : "Client"} →`}
+            </button>
+          </div>
+        )}
+
+        {/* SIGN UP STEP 1 */}
+        {mode === "signup" && step === 1 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+              <Field label="Full name"><input type="text" placeholder="Your name" style={inputStyle} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
+              <Field label="Email"><input type="email" placeholder="you@example.com" style={inputStyle} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></Field>
+            </div>
+            <Field label="Password">
+              <div style={{ position: "relative" }}>
+                <input type={showPass ? "text" : "password"} placeholder="Min. 8 characters" style={{ ...inputStyle, paddingRight: 44 }} value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
+                <button onClick={() => setShowPass((p) => !p)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: C.textSecondary, fontSize: 18 }}>{showPass ? "🙈" : "👁"}</button>
+              </div>
+            </Field>
+            {isTrainer && <Field label="Gym / Studio name"><input type="text" placeholder="Iron Temple Gym" style={inputStyle} value={form.gym} onChange={(e) => setForm((f) => ({ ...f, gym: e.target.value }))} /></Field>}
+            {!isTrainer && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {[["Weight (kg)", "weight", "75"], ["Height (cm)", "height", "175"], ["Age", "age", "25"]].map(([l, k, ph]) => (
+                  <Field key={k} label={l}><input type="number" placeholder={ph} style={inputStyle} value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} /></Field>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setStep(2)} style={{ width: "100%", padding: 13, border: "none", borderRadius: 12, cursor: "pointer", fontFamily: "Syne, sans-serif", fontSize: 14, fontWeight: 700, background: accentColor, color: isTrainer ? "#000" : "#fff", marginTop: 4 }}>Continue →</button>
+          </div>
+        )}
+
+        {/* SIGN UP STEP 2 */}
+        {mode === "signup" && step === 2 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {isTrainer ? (
+              <>
+                <Field label="Years of experience">
+                  <select style={{ ...inputStyle, cursor: "pointer" }} value={form.experience} onChange={(e) => setForm((f) => ({ ...f, experience: e.target.value }))}>
+                    <option value="">Select experience</option><option>Under 1 year</option><option>1–3 years</option><option>3–7 years</option><option>7+ years</option>
+                  </select>
+                </Field>
+                <Field label="Specialties">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                    {specialties.map((s) => {
+                      const active = selectedSpecialties.includes(s);
+                      return <button key={s} onClick={() => toggleSpecialty(s)} style={{ padding: "6px 12px", borderRadius: 20, fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", border: `1px solid ${active ? C.accent : C.border}`, background: active ? `${C.accent}15` : C.card, color: active ? C.accent : C.textSecondary }}>{s}</button>;
+                    })}
+                  </div>
+                </Field>
+              </>
+            ) : (
+              <>
+                <Field label="Fitness level">
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginTop: 4 }}>
+                    {[["Beginner", "🌱"], ["Intermediate", "🔥"], ["Advanced", "⚡"]].map(([l, emoji]) => {
+                      const active = selectedGoal === l;
+                      return <button key={l} onClick={() => setSelectedGoal(active ? "" : l)} style={{ padding: "10px 6px", borderRadius: 10, border: `1px solid ${active ? C.blue : C.border}`, background: active ? `${C.blue}15` : C.card, color: active ? C.blue : C.textSecondary, cursor: "pointer", fontSize: 12 }}>{emoji} {l}</button>;
+                    })}
+                  </div>
+                </Field>
+                <Field label="Primary goal">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                    {goals.map((g) => {
+                      const active = selectedGoal === g;
+                      return <button key={g} onClick={() => setSelectedGoal(active ? "" : g)} style={{ padding: "6px 12px", borderRadius: 20, fontSize: 11, fontWeight: 500, cursor: "pointer", border: `1px solid ${active ? C.blue : C.border}`, background: active ? `${C.blue}15` : C.card, color: active ? C.blue : C.textSecondary }}>{g}</button>;
+                    })}
+                  </div>
+                </Field>
+              </>
+            )}
+            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+              <button onClick={() => setStep(1)} style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 10, border: `1px solid ${C.border}`, background: C.card, color: C.textSecondary, cursor: "pointer", fontSize: 18 }}>←</button>
+              <button onClick={handleAuthSubmit} disabled={loading} style={{ flex: 1, padding: 13, border: "none", borderRadius: 12, cursor: loading ? "not-allowed" : "pointer", fontFamily: "Syne, sans-serif", fontSize: 14, fontWeight: 700, background: accentColor, color: isTrainer ? "#000" : "#fff", opacity: loading ? 0.7 : 1 }}>
+                {loading ? "Creating..." : "Create Account ✓"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

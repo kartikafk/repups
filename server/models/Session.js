@@ -3,19 +3,26 @@ import mongoose from 'mongoose';
 const RepSchema = new mongoose.Schema(
   {
     n: Number,
-    ecc: Number,    // eccentric phase duration, ms
-    pause: Number,  // pause/bottom phase duration, ms
-    con: Number,    // concentric phase duration, ms
-    rom: Number,    // range of motion achieved, degrees
-    score: Number,  // 0-100 for this rep
-    flags: [String] // form issues detected on this rep
+    ecc: Number,
+    pause: Number,
+    con: Number,
+    rom: Number,
+    score: Number,
+    flags: [String]
   },
   { _id: false }
 );
 
 const SessionSchema = new mongoose.Schema(
   {
-    exercise: { type: String, required: true }, // squat | pushup | curl | lunge
+    userId: { type: String, required: true, index: true },
+    exercise: { type: String, required: true }, 
+    muscleGroup: { type: String, index: true }, // 🔑 Added to support muscle group dashboards
+    setIndex: { type: Number, default: 0, index: true }, 
+    date: { type: String, required: true, index: true }, // 'YYYY-MM-DD'
+    weight: { type: Number, default: 0 }, 
+    youtubeId: { type: String, default: null }, 
+    videoUrl: { type: String, default: null }, 
     reps: [RepSchema],
     repCount: { type: Number, required: true },
     avgScore: { type: Number, required: true },

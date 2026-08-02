@@ -24,6 +24,7 @@ symmetry,
 start,
 stop
 } = tracker;
+
   const localVideoRef = useRef(null);
   const shouldStartRef = useRef(shouldStart);
 
@@ -75,13 +76,24 @@ stop
     };
   }, [shouldStart, start, stop, facingMode]);
 
+  // Ending a set only stops the tracker and hands control back to
+  // WorkoutFlow via onEndSet. WorkoutFlow.handleEndSet builds the report
+  // (via tracker.buildReport()) and ReportView saves it exactly once.
+  // CameraView does NOT talk to the backend directly -- a duplicate save
+  // here (with its own, less-reliable userId resolution and a hardcoded
+  // fallback score) was producing a second, failing POST for every set.
+  const handleEndSetClick = () => {
+    if (onEndSet) {
+      onEndSet();
+    }
+  };
+
   if (!tracker) {
     return null;
   }
 
   const cueColor = cue.kind === 'warn' ? 'var(--warn)' : cue.kind === 'bad' ? 'var(--bad)' : 'var(--go)';
-  console.log("CameraView mounted");
-  console.log("CameraView loaded", videoRef.current);
+  
   return (
     <div className="cam-wrap">
       <video
@@ -95,7 +107,7 @@ stop
 
       <div className="topbar">
         <div>
-          <div className="ex-name">{EXERCISES[exercise].label}</div>
+          <div className="ex-name">{EXERCISES[exercise]?.label || exercise}</div>
           <div className="status">{hudStatus}</div>
         </div>
         <div className="icon-btn" onClick={onStop}>
@@ -103,7 +115,7 @@ stop
         </div>
       </div>
 
-      <button className="end-set-btn" onClick={onEndSet}>
+      <button className="end-set-btn" onClick={handleEndSetClick}>
         END SET → REPORT
       </button>
 
@@ -136,7 +148,7 @@ stop
           <div className={`phase-chip ${phase === 'ascending' ? 'on' : ''}`}>CONCENTRIC</div>
         </div>
         <div className="live-biomechanics">
-</div>
+        </div>
       </div>
     </div>
   );

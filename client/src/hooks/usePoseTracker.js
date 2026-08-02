@@ -44,7 +44,7 @@ export function usePoseTracker({ exercise, voiceOn }) {
   const phaseDurRef = useRef({ ecc: 0, pause: 0, con: 0 });
   const minAngleRef = useRef(999);
   
-  // NEW: Ref to track secondary compound joints during the rep
+  // Ref to track secondary compound joints during the rep
   const minCompoundAnglesRef = useRef({}); 
   
   const repsRef = useRef([]);
@@ -86,7 +86,14 @@ export function usePoseTracker({ exercise, voiceOn }) {
   const [cue, setCue] = useState({ text: 'Get in frame to begin', kind: 'go' });
   const [hudStatus, setHudStatus] = useState('calibrating…');
 
-  const cfg = useCallback(() => EXERCISES[exercise], [exercise]);
+  const cfg = useCallback(() => EXERCISES[exercise] || {
+    label: (exercise || '').toUpperCase(),
+    primaryAngle: "elbowAngle",
+    topAngle: 160,
+    bottomAngle: 90,
+    goodDepth: 85,
+    requiresFullBody: false
+  }, [exercise]);
 
   const speak = useCallback(
     (text) => {
@@ -206,12 +213,12 @@ export function usePoseTracker({ exercise, voiceOn }) {
 
     let score = 100;
     const flags = [];
-    if (cameraViewRef.current === "side") {
+    if (cameraViewRef.current === "side" && c.requiresFullBody !== false) {
         if (angles.torsoAngle > 30) {
             score -= 10;
             flags.push("lean");
         }
-        if (minAngleRef.current > cfg().goodDepth) {
+        if (minAngleRef.current > c.goodDepth) {
             score -= 15;
             flags.push("depth");
         }
@@ -223,7 +230,7 @@ export function usePoseTracker({ exercise, voiceOn }) {
       noteIssue('depth', issueDescription('depth'));
     }
 
-    // NEW: Evaluate secondary compound joints
+    // Evaluate secondary compound joints
     if (c.compoundJoints) {
       c.compoundJoints.forEach(joint => {
           const minVal = minCompoundAnglesRef.current[joint.name];
@@ -333,9 +340,9 @@ export function usePoseTracker({ exercise, voiceOn }) {
     if (hist.length > 6) hist.shift();
     const velocity = hist.length >= 2 ? hist[hist.length - 1].a - hist[0].a : 0;
     
-    const kneeScore = Math.max(0, 100 - Math.min(angles.kneeAngleAsym * 4, 100));
-    const shoulderScore = Math.max(0, 100 - Math.min(angles.shoulderAsym * 4, 100));
-    const spineScore = Math.max(0, 100 - Math.min(Math.abs(angles.torsoAngle) * 2.5, 100));
+    const kneeScore = angles.kneeAngleAsym !== undefined ? Math.max(0, 100 - Math.min(angles.kneeAngleAsym * 4, 100)) : 100;
+    const shoulderScore = angles.shoulderAsym !== undefined ? Math.max(0, 100 - Math.min(angles.shoulderAsym * 4, 100)) : 100;
+    const spineScore = angles.torsoAngle !== undefined ? Math.max(0, 100 - Math.min(Math.abs(angles.torsoAngle) * 2.5, 100)) : 100;
     const overallScore = (kneeScore * 0.40 + shoulderScore * 0.30 + spineScore * 0.30);
 
     jointScoresRef.current = {
@@ -345,41 +352,46 @@ export function usePoseTracker({ exercise, voiceOn }) {
         spine: Math.round(spineScore)
     };
 
-    const pelvis = angles.virtual.pelvis;
-    const leftFoot = lm[LM.L_ANKLE];
-    const rightFoot = lm[LM.R_ANKLE];
-    const distLeft = Math.abs(pelvis.x - leftFoot.x);
-    const distRight = Math.abs(rightFoot.x - pelvis.x);
-    const total = distLeft + distRight;
+    if (angles.virtual && angles.virtual.pelvis && lm[LM.L_ANKLE] && lm[LM.R_ANKLE]) {
+      const pelvis = angles.virtual.pelvis;
+      const leftFoot = lm[LM.L_ANKLE];
+      const rightFoot = lm[LM.R_ANKLE];
+      const distLeft = Math.abs(pelvis.x - leftFoot.x);
+      const distRight = Math.abs(rightFoot.x - pelvis.x);
+      const total = distLeft + distRight;
 
-    balanceRef.current = {
-        left: total === 0 ? 50 : Math.max(0, Math.min(100, (distRight / total) * 100)),
-        right: total === 0 ? 50 : Math.max(0, Math.min(100, (distLeft / total) * 100))
-    };
+      balanceRef.current = {
+          left: total === 0 ? 50 : Math.max(0, Math.min(100, (distRight / total) * 100)),
+          right: total === 0 ? 50 : Math.max(0, Math.min(100, (distLeft / total) * 100))
+      };
 
-    const com = angles.virtual.pelvis;
-    comHistoryRef.current.push(com);
-    motionTrailRef.current.push(com);
-    if(motionTrailRef.current.length > 40) motionTrailRef.current.shift();
+      const com = angles.virtual.pelvis;
+      comHistoryRef.current.push(com);
+      motionTrailRef.current.push(com);
+      if(motionTrailRef.current.length > 40) motionTrailRef.current.shift();
 
-    if (comHistoryRef.current.length > 1) {
-        const prev = comHistoryRef.current.at(-2);
-        const dx = com.x - prev.x;
-        const dy = com.y - prev.y;
-        const sway = Math.sqrt(dx * dx + dy * dy);
-        stabilityHistoryRef.current.push(sway);
-        if (stabilityHistoryRef.current.length > 120) stabilityHistoryRef.current.shift();
+      if (comHistoryRef.current.length > 1) {
+          const prev = comHistoryRef.current.at(-2);
+          const dx = com.x - prev.x;
+          const dy = com.y - prev.y;
+          const sway = Math.sqrt(dx * dx + dy * dy);
+          stabilityHistoryRef.current.push(sway);
+          if (stabilityHistoryRef.current.length > 120) stabilityHistoryRef.current.shift();
+      }
     }
 
-    symmetryHistoryRef.current.push(angles.kneeAngleAsym);
-    if(symmetryHistoryRef.current.length > 120) symmetryHistoryRef.current.shift();
-
-    spineHistoryRef.current.push(angles.torsoAngle);
-    if(spineHistoryRef.current.length > 120) spineHistoryRef.current.shift();
+    if (angles.kneeAngleAsym !== undefined) {
+      symmetryHistoryRef.current.push(angles.kneeAngleAsym);
+      if(symmetryHistoryRef.current.length > 120) symmetryHistoryRef.current.shift();
+    }
+    if (angles.torsoAngle !== undefined) {
+      spineHistoryRef.current.push(angles.torsoAngle);
+      if(spineHistoryRef.current.length > 120) spineHistoryRef.current.shift();
+    }
 
     const velocityScore = Math.min(100, Math.abs(velocity) * 4);
-    const romScore = Math.min(100, ((cfg().topAngle - minAngleRef.current) / cfg().topAngle) * 100);
-    const symmetryScore = Math.max(0, 100 - angles.kneeAngleAsym * 3);
+    const romScore = Math.min(100, ((c.topAngle - minAngleRef.current) / c.topAngle) * 100);
+    const symmetryScore = angles.kneeAngleAsym !== undefined ? Math.max(0, 100 - angles.kneeAngleAsym * 3) : 100;
     const stabilityScore = Math.max(0, 100 - Math.abs(velocity) * 2);
     const qualityScore = velocityScore * 0.30 + romScore * 0.30 + symmetryScore * 0.20 + stabilityScore * 0.20;
 
@@ -400,11 +412,9 @@ export function usePoseTracker({ exercise, voiceOn }) {
       minAngleRef.current = angle;
       
     } else if (state === 'descending' || state === 'paused') {
-      
-      // Track primary driver angle
       minAngleRef.current = Math.min(minAngleRef.current, angle);
 
-      // NEW: Track deepest point of all compound joints required for this exercise
+      // Track deepest point of all compound joints required for this exercise
       if (c.compoundJoints) {
           c.compoundJoints.forEach(joint => {
               const currentVal = angles[joint.name];
@@ -442,7 +452,7 @@ export function usePoseTracker({ exercise, voiceOn }) {
 
   function processSideAngle(angles, lm, now) {
     const c = cfg();
-    const leftVisible = lm[LM.L_HIP].visibility > lm[LM.R_HIP].visibility;
+    const leftVisible = (lm[LM.L_HIP]?.visibility ?? 1) > (lm[LM.R_HIP]?.visibility ?? 0);
     let primaryAngle;
 
     switch (exercise) {
@@ -459,10 +469,18 @@ export function usePoseTracker({ exercise, voiceOn }) {
         case "calfRaise":
             primaryAngle = leftVisible ? angles.leftAnkleAngle : angles.rightAnkleAngle;
             break;
+        case "benchPress":
+        case "inclineBenchPress":
+        case "declineBenchPress":
+        case "tricepsPushdown":
+        case "pushdown":
+        case "ropePushdown":
+            primaryAngle = leftVisible ? angles.leftElbowAngle : angles.rightElbowAngle;
+            break;
         default:
-            primaryAngle = leftVisible ? angles.leftKneeAngle : angles.rightKneeAngle;
+            primaryAngle = leftVisible ? (angles[c.primaryAngle] ?? angles.leftElbowAngle ?? angles.leftKneeAngle) : (angles[c.primaryAngle] ?? angles.rightElbowAngle ?? angles.rightKneeAngle);
     }
-    processAngle(primaryAngle, angles, lm, now);
+    processAngle(primaryAngle ?? angles[c.primaryAngle] ?? 180, angles, lm, now);
   }
 
   function drawJoint(ctx, x, y, radius, color) {
@@ -564,29 +582,9 @@ export function usePoseTracker({ exercise, voiceOn }) {
       y: (leftShoulder.y + rightShoulder.y) / 2
     };
 
-    const chest = {
-      x: neck.x,
-      y: neck.y + ((leftHip.y + rightHip.y) / 2 - neck.y) * 0.35
-    };
-
     const pelvis = {
       x: (leftHip.x + rightHip.x) / 2,
       y: (leftHip.y + rightHip.y) / 2
-    };
-
-    const leftFemur = {
-      x: (leftHip.x + leftKnee.x) / 2,
-      y: (leftHip.y + leftKnee.y) / 2
-    };
-
-    const rightFemur = {
-      x: (rightHip.x + rightKnee.x) / 2,
-      y: (rightHip.y + rightKnee.y) / 2
-    };
-
-    const chin = {
-      x: nose.x,
-      y: nose.y + 0.045
     };
     
     ctx.clearRect(0, 0, w, h);
@@ -686,11 +684,6 @@ export function usePoseTracker({ exercise, voiceOn }) {
     }
 
     const angles = computeAngles(lm);
-    const kneeAngleAsym = angles.kneeAngleAsym;
-    const shoulderAsym = angles.shoulderAsym;
-    
-    const torsoVector = { x: neck.x - pelvis.x, y: neck.y - pelvis.y };
-    const torsoAngle = Math.abs(Math.atan2(torsoVector.x, -torsoVector.y) * 180 / Math.PI);
 
     drawAngleText(ctx, pts.L_KNEE.x, pts.L_KNEE.y, angles.kneeAngle);
     drawAngleText(ctx, pts.L_ELBOW.x, pts.L_ELBOW.y, angles.elbowAngle);
@@ -866,16 +859,24 @@ export function usePoseTracker({ exercise, voiceOn }) {
           drawSkeleton(lm);
           const biomechanics = computeAngles(lm);
           const angles = biomechanics;
+          const c = cfg();
 
-          if (isHoldExercise()) {
-              processHold(angles, now);
+          // Resilient check: Upper-body lifts & cable exercises bypass strict knee/hip visibility
+          const isUpperBodyOnly = c.requiresFullBody === false || ['elbowAngle', 'elbowAngleCurl', 'shoulderPressAngle'].includes(c.primaryAngle);
+          const upperVisOk = lm[LM.L_ELBOW]?.visibility > 0.3 || lm[LM.R_ELBOW]?.visibility > 0.3;
+
+          if (upperVisOk || !isUpperBodyOnly) {
+            if (isHoldExercise()) {
+                processHold(angles, now);
+            } else {
+                if (cameraViewRef.current === "front" && !isUpperBodyOnly) {
+                    processAngle(angles[c.primaryAngle] ?? angles.elbowAngle, angles, lm, now);
+                } else {
+                    processSideAngle(angles, lm, now);
+                }
+            }
           } else {
-              const c = cfg();
-              if (cameraViewRef.current === "front") {
-                  processAngle(angles[c.primaryAngle], angles, lm, now);
-              } else {
-                  processSideAngle(angles, lm, now);
-              }
+            setCue({ text: 'Ensure upper body joints are in camera frame', kind: 'warn' });
           }
         } else {
           const canvas = canvasRef.current;
@@ -910,7 +911,7 @@ export function usePoseTracker({ exercise, voiceOn }) {
       phaseStartRef.current = { ecc: 0, pause: 0, con: 0 };
       phaseDurRef.current = { ecc: 0, pause: 0, con: 0 };
       minAngleRef.current = 999;
-      minCompoundAnglesRef.current = {}; // NEW: Reset for fresh session
+      minCompoundAnglesRef.current = {}; 
       repsRef.current = [];
       sessionIssuesRef.current = {};
       smoothedLandmarksRef.current = null;
@@ -973,7 +974,7 @@ export function usePoseTracker({ exercise, voiceOn }) {
         } catch (permissionError) {
           throw new Error(
             permissionError?.name === 'NotAllowedError'
-              ? 'Camera permission was denied. Please allow camera access in Edge and refresh the page.'
+              ? 'Camera permission was denied. Please allow camera access and refresh the page.'
               : permissionError?.name === 'NotFoundError'
                 ? 'No camera was found on this device.'
                 : permissionError?.message || 'Camera access failed.'

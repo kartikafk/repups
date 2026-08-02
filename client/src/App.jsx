@@ -1,189 +1,150 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
-// Existing Workout Engine Imports
-import StartScreen from './components/StartScreen';
 import CameraView from './components/CameraView';
 import ReportView from './components/ReportView';
-import HistoryView from './components/HistoryView';
 import { usePoseTracker } from './hooks/usePoseTracker';
-import { syncAssessmentRecord } from './api';
+import CommunityFeed from './components/CommunityFeed';
+import { EXERCISE_LIBRARY } from './hooks/exercises';
 
-// New Architecture Imports
-import RepUpsSignup from './components/signup';
+import RepUpsSignup from './components/signup'; 
 import AIOnboardingChat from './components/AIOnboardingChat';
 import PostureAssessment from './components/PostureAssessment';
 import HomeDashboard from './components/HomeDashboard';
-import AIChatbot from './components/AIOnboardingChat'; // Optional: if using your full-screen AI chat component
+import WorkoutSessionPlayer from './components/WorkoutSessionPlayer'; 
 
-// Mock/Safe helper if local IndexedDB save helper is missing in your workspace
-const saveAssessment = async (data) => {
-  console.log("💾 Assessment saved locally:", data);
-  return true;
-};
-
-// ----------------------------------------------------------------------
-// 1. Original Workout App Component (WorkoutFlow)
-// ----------------------------------------------------------------------
 function WorkoutFlow() {
-  const [screen, setScreen] = useState('start'); // start | camera | report
-  const [exercise, setExercise] = useState('squat');
-  const [facingMode, setFacingMode] = useState('user');
-  const [voiceOn, setVoiceOn] = useState(true);
-  const [report, setReport] = useState(null);
-  const [startRequested, setStartRequested] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const initialExercise = location.state?.exercise || 'squat';
+  const initialFacing = location.state?.facingMode || 'user';
+  const activeSetIndex = location.state?.setIndex ?? 0;
+  const targetDate = location.state?.date || new Date().toISOString().split('T')[0];
+  const targetWeight = location.state?.weight || 0;
 
-  // Preview modal state
-  const [showReplay, setShowReplay] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  // Use the userId WorkoutSessionPlayer already resolved (via its
+  // getResolvedUserId, which checks the 'user' JSON object, then
+  // 'profileId', then 'userId') and passed through navigation state.
+  // Do NOT re-derive it here.
+  const sessionUserId = location.state?.userId || null;
+
+  const [screen, setScreen] = useState('camera'); 
+  const [exercise] = useState(initialExercise);
+  const [facingMode] = useState(initialFacing);
+  const [voiceOn] = useState(true);
+  const [report, setReport] = useState(null);
+  const [startRequested, setStartRequested] = useState(true);
 
   const tracker = usePoseTracker({ exercise, voiceOn });
 
-  const handlePreview = (url) => {
-    if (!url) return;
-    setPreviewUrl(url);
-    setShowReplay(true);
-  };
-
-  const handleClosePreview = () => {
-    setShowReplay(false);
-  };
-
-  const handleStart = () => {
-    setStartRequested(true);
-    setScreen('camera');
-  };
+  useEffect(() => {
+    if (!sessionUserId) {
+      console.warn('WorkoutFlow launched with no userId in navigation state. Redirecting to session picker.');
+      navigate('/session', { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleStop = () => {
     tracker.stop();
     setStartRequested(false);
-    setScreen('start');
+    navigate('/session');
   };
 
   const handleEndSet = async () => {
     await tracker.stop();
     setStartRequested(false);
     const finishedReport = tracker.buildReport();
-    setReport(finishedReport);
+
+    const exerciseMeta = EXERCISE_LIBRARY.find(ex => ex.key === finishedReport.exercise || ex.trackingKey === finishedReport.exercise);
+    const cleanExerciseName = exerciseMeta ? exerciseMeta.name : (exerciseMeta?.label || finishedReport.exercise);
+
+    // Single enriched report object. Saved exactly once, by ReportView
+    // (via saveSession) below -- no separate manual sync call.
+    const enrichedReport = {
+      ...finishedReport,
+      exercise: cleanExerciseName,
+      setIndex: activeSetIndex,
+      date: targetDate,
+      weight: targetWeight,
+      userId: sessionUserId
+    };
+
+    setReport(enrichedReport);
     setScreen('report');
-
-    // Save locally
-    saveAssessment({ report: finishedReport, videoBlob: finishedReport.videoBlob }).catch((err) => {
-      console.warn('Failed to save assessment locally:', err);
-    });
-
-    // Sync stats record
-    syncAssessmentRecord({
-      exercise: finishedReport.exercise,
-      avgScore: finishedReport.avgScore,
-      repCount: finishedReport.repCount,
-      avgRom: finishedReport.avgRom,
-      consistency: finishedReport.consistency
-    }).catch((err) => {
-      console.warn('Failed to sync assessment record:', err);
-    });
   };
 
   const handleAgain = () => {
     tracker.stop();
     tracker.clearReplay(); 
-    setStartRequested(false);
-    setReport(null);
-    setShowReplay(false);
-    setPreviewUrl(null);
-    setScreen('start');
+    navigate('/session'); 
   };
 
-  const handleOpenHistory = () => {
-    setScreen('history');
-  };
-
-  const handleBackFromHistory = () => {
-    setScreen('start');
+  const handlePreview = (replayUrl) => {
+    if (!replayUrl) return;
+    window.open(replayUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
     <div id="app">
       {screen === 'camera' && (
-        <CameraView
-          tracker={tracker}
-          exercise={exercise}
-          facingMode={facingMode}
-          shouldStart={startRequested}
-          onStop={handleStop}
-          onEndSet={handleEndSet}
-        />
+        <CameraView tracker={tracker} exercise={exercise} facingMode={facingMode} shouldStart={startRequested} onStop={handleStop} onEndSet={handleEndSet} />
       )}
-      {screen === 'start' && (
-        <StartScreen
-          exercise={exercise}
-          setExercise={setExercise}
-          facingMode={facingMode}
-          setFacingMode={setFacingMode}
-          voiceOn={voiceOn}
-          setVoiceOn={setVoiceOn}
-          onStart={handleStart}
-          onOpenHistory={handleOpenHistory}
-        />
-      )}
-      {screen === 'history' && <HistoryView onBack={handleBackFromHistory} />}
       {screen === 'report' && report && (
         <ReportView
           report={report}
           onAgain={handleAgain}
           onDone={handleAgain}
           onPreview={handlePreview}
+          isHistorical={false}
         />
-      )}
-
-      {showReplay && previewUrl && (
-        <div className="preview-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={handleClosePreview}>
-          <div className="preview-modal" onClick={(e) => e.stopPropagation()} style={{ background: '#111116', border: '1px solid #222232', borderRadius: 12, padding: 20, width: '100%', maxWidth: 500, position: 'relative' }}>
-            <button className="preview-modal-close" onClick={handleClosePreview} style={{ position: 'absolute', top: 10, right: 10, background: 'transparent', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer' }}>
-              ✕
-            </button>
-            <video
-              src={previewUrl}
-              controls
-              autoPlay
-              playsInline
-              style={{ width: '100%', maxHeight: '70vh', borderRadius: 8, marginTop: 20 }}
-            />
-          </div>
-        </div>
       )}
     </div>
   );
 }
 
-// ----------------------------------------------------------------------
-// 2. The Main Router App Component
-// ----------------------------------------------------------------------
+function ReportRouteWrapper() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const reportData = location.state?.report;
+
+  if (!reportData) {
+    return <Navigate to="/session" replace />;
+  }
+
+  const handlePreview = (replayUrl) => {
+    if (!replayUrl) return;
+    window.open(replayUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <ReportView 
+      report={reportData} 
+      onAgain={() => navigate('/session')} 
+      onDone={() => navigate('/session')} 
+      onPreview={handlePreview}
+      isHistorical={true}
+    />
+  );
+}
+
 export default function App() {
   return (
     <Router>
       <Routes>
-        {/* Step 1: Sign Up / Sign In Page */}
         <Route path="/" element={<RepUpsSignup />} />
-
-        {/* Step 2: AI Chatbot Intake Component */}
         <Route path="/ai-onboarding" element={<AIOnboardingChat />} />
-
-        {/* Step 3: Posture Assessment & PDF Generator Page */}
         <Route path="/posture-assessment" element={<PostureAssessment />} />
-
-        {/* Step 4: Home Dashboard Hub */}
         <Route path="/dashboard" element={<HomeDashboard />} />
-
-        {/* Step 5: Original Camera & Workout Tracking Flow */}
+        {/* No userId prop passed here -- WorkoutSessionPlayer resolves it
+            itself from localStorage on every mount via getResolvedUserId,
+            which is more thorough and always fresh. */}
+        <Route path="/session" element={<WorkoutSessionPlayer />} />
         <Route path="/workout" element={<WorkoutFlow />} />
-
-        {/* Navbar Option Routes */}
-        <Route path="/ai-coach" element={<AIOnboardingChat />} /> {/* Or use <AIChatbot /> if created */}
-        <Route path="/community" element={<HomeDashboard />} />
-        <Route path="/workout-tracks" element={<HomeDashboard />} />
-
-        {/* Fallback Route */}
+        <Route path="/report" element={<ReportRouteWrapper />} />
+        <Route path="/ai-coach" element={<AIOnboardingChat />} /> 
+        <Route path="/community" element={<CommunityFeed/>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
