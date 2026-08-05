@@ -8,6 +8,8 @@ import path from 'path';
 import sessionsRouter from './routes/sessions.js';
 import authRouter from './routes/auth.js'; 
 import postureRouter from './routes/posture.js';
+import trainerAuthRouter from './routes/trainerAuth.js'; // Trainer auth & profile routes
+import messagesRouter from './routes/messages.js';       // 👈 Import the new messaging router
 
 dotenv.config();
 
@@ -15,7 +17,7 @@ const app = express();
 
 // Middleware
 app.use(cors({ 
-  origin: '*', // Allows connections from local network devices (like phones testing on your IP)
+  origin: '*', // Allows connections from local network devices (like mobile phones testing on your IP)
   credentials: true 
 }));
 
@@ -32,6 +34,8 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/auth', authRouter); 
 app.use('/api/posture', postureRouter);
+app.use('/api/trainers', trainerAuthRouter); 
+app.use('/api/messages', messagesRouter); // 👈 Mount messaging routes for the chat dashboard
 
 const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/formcoach';
@@ -39,7 +43,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/formco
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
-    console.log('✅ MongoDB connected successfully');
+    console.log('✅ MongoDB connected successfully (Client / Primary DB)');
     app.listen(PORT, () => console.log(`🚀 RepUps API running on port ${PORT}`));
   })
   .catch((err) => {

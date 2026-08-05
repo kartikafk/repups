@@ -1,17 +1,23 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 
-import CameraView from './components/CameraView';
-import ReportView from './components/ReportView';
-import { usePoseTracker } from './hooks/usePoseTracker';
-import CommunityFeed from './components/CommunityFeed';
-import { EXERCISE_LIBRARY } from './hooks/exercises';
+// 📂 Client Components
+import CameraView from "./components/client/CameraView";
+import ReportView from "./components/client/ReportView";
+import CommunityFeed from "./components/client/CommunityFeed";
+import TrainerDiscovery from "./components/client/TrainerDiscovery";
+import AIOnboardingChat from "./components/client/AIOnboardingChat";
+import PostureAssessment from "./components/client/PostureAssessment";
+import HomeDashboard from "./components/client/HomeDashboard";
+import WorkoutSessionPlayer from "./components/client/WorkoutSessionPlayer"; 
+import RepUpsSignup from "./components/signup"; 
 
-import RepUpsSignup from './components/signup'; 
-import AIOnboardingChat from './components/AIOnboardingChat';
-import PostureAssessment from './components/PostureAssessment';
-import HomeDashboard from './components/HomeDashboard';
-import WorkoutSessionPlayer from './components/WorkoutSessionPlayer'; 
+// 🏋️ Trainer Portal Component (Adjust path if TrainerDashboard.jsx is inside src/components/trainer/)
+import TrainerDashboard from "./trainer/pages/Trainerdashboard";
+
+// 🎣 Hooks
+import { usePoseTracker } from "./hooks/usePoseTracker";
+import { EXERCISE_LIBRARY } from "./hooks/exercises";
 
 function WorkoutFlow() {
   const navigate = useNavigate();
@@ -22,11 +28,6 @@ function WorkoutFlow() {
   const activeSetIndex = location.state?.setIndex ?? 0;
   const targetDate = location.state?.date || new Date().toISOString().split('T')[0];
   const targetWeight = location.state?.weight || 0;
-
-  // Use the userId WorkoutSessionPlayer already resolved (via its
-  // getResolvedUserId, which checks the 'user' JSON object, then
-  // 'profileId', then 'userId') and passed through navigation state.
-  // Do NOT re-derive it here.
   const sessionUserId = location.state?.userId || null;
 
   const [screen, setScreen] = useState('camera'); 
@@ -40,10 +41,8 @@ function WorkoutFlow() {
 
   useEffect(() => {
     if (!sessionUserId) {
-      console.warn('WorkoutFlow launched with no userId in navigation state. Redirecting to session picker.');
       navigate('/session', { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleStop = () => {
@@ -60,8 +59,6 @@ function WorkoutFlow() {
     const exerciseMeta = EXERCISE_LIBRARY.find(ex => ex.key === finishedReport.exercise || ex.trackingKey === finishedReport.exercise);
     const cleanExerciseName = exerciseMeta ? exerciseMeta.name : (exerciseMeta?.label || finishedReport.exercise);
 
-    // Single enriched report object. Saved exactly once, by ReportView
-    // (via saveSession) below -- no separate manual sync call.
     const enrichedReport = {
       ...finishedReport,
       exercise: cleanExerciseName,
@@ -137,14 +134,13 @@ export default function App() {
         <Route path="/ai-onboarding" element={<AIOnboardingChat />} />
         <Route path="/posture-assessment" element={<PostureAssessment />} />
         <Route path="/dashboard" element={<HomeDashboard />} />
-        {/* No userId prop passed here -- WorkoutSessionPlayer resolves it
-            itself from localStorage on every mount via getResolvedUserId,
-            which is more thorough and always fresh. */}
+        <Route path="/trainer-dashboard" element={<TrainerDashboard />} />
         <Route path="/session" element={<WorkoutSessionPlayer />} />
         <Route path="/workout" element={<WorkoutFlow />} />
         <Route path="/report" element={<ReportRouteWrapper />} />
         <Route path="/ai-coach" element={<AIOnboardingChat />} /> 
-        <Route path="/community" element={<CommunityFeed/>} />
+        <Route path="/community" element={<CommunityFeed />} />
+        <Route path="/trainers" element={<TrainerDiscovery />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

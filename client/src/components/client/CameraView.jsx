@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { EXERCISES } from '../hooks/exercises';
+import { EXERCISES } from '../../hooks/exercises';
 
 export default function CameraView({ tracker, exercise, facingMode, shouldStart, onStop, onEndSet }) {
  const {

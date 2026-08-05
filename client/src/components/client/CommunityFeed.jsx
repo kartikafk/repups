@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { EXERCISES,EXERCISE_LIBRARY } from "../hooks/exercises";// Import your full exercise library
+import { EXERCISES,EXERCISE_LIBRARY } from "../../hooks/exercises";// Import your full exercise library
 
 const C = {
   bg: "#0a0a0a", surface: "#111111", card: "#161616", border: "#222222",

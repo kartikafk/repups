@@ -19,7 +19,7 @@ const dashboardData = {
 
 const quickLinks = [
   { id: "posture", label: "Posture", icon: "🧍", color: C.blue, route: "/posture-assessment" },
-  { id: "workout", label: "Workout", icon: "🏋️", color: C.lime, route: "/session" },
+  { id: "trainer", label: "Find Trainer", icon: "🤝", color: C.lime, route: "/trainers" },
   { id: "ai-coach", label: "AI Coach", icon: "🤖", color: "#FF9F43", route: "/ai-coach" },
   { id: "community", label: "Community", icon: "👥", color: "#B892FF", route: "/community" },
 ];
@@ -67,20 +67,11 @@ function Ring({ pct, color, size = 70, stroke = 7, icon, value, label }) {
 
 function LineChart({ points, color, metricKey, unit }) {
   const width = 640, height = 200, padX = 30, padY = 24;
-  if (!points || points.length === 0) return <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: C.sub, fontSize: 12 }}>No graph data available</div>;
+  if (!points || points.length === 0) return <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: C.sub, fontSize: 12 }}>No graph data available for this timeframe</div>;
 
   const values = points.map(p => p[metricKey] || 0);
   const min = Math.min(...values), max = Math.max(...values);
   const range = max - min || 1;
-  // When there's no variance in the data (most commonly: only one session
-  // logged so far for this muscle group, or every logged value happens to
-  // be identical), `range` falls back to 1 and (value - min) is always 0.
-  // Left unhandled, that pins every point to the bottom baseline
-  // (height - padY) regardless of the actual value -- which is why
-  // switching muscle group or metric changed the number above the chart
-  // but the plotted point never visibly moved. Centering flat/single-point
-  // data instead reads correctly as "not enough variance yet" rather than
-  // silently misrepresenting the value as the lowest possible one.
   const isFlat = max === min;
 
   const coords = points.map((p, i) => {
@@ -121,7 +112,7 @@ function LineChart({ points, color, metricKey, unit }) {
         </g>
       ))}
       {coords.map((c, i) => (
-        (i === 0 || i === coords.length - 1 || i % 2 === 0) && (
+        (i === 0 || i === coords.length - 1 || i % Math.max(1, Math.floor(coords.length / 5)) === 0) && (
           <text key={"lbl"+i} x={c.x} y={height - 4} textAnchor="middle" fontSize="9" fill={C.sub}>{c.date}</text>
         )
       ))}
@@ -132,7 +123,8 @@ function LineChart({ points, color, metricKey, unit }) {
 function MuscleGroupMetricWidget({ userId }) {
   const muscleGroups = ["Legs", "Chest", "Back", "Shoulders", "Arms", "Core"];
   const [selectedMuscle, setSelectedMuscle] = useState("Legs");
-  const [metric, setMetric] = useState("oneRM"); // 'oneRM' | 'volume' | 'formAccuracy'
+  const [metric, setMetric] = useState("oneRM");
+  const [timeframe, setTimeframe] = useState("1month");
   const [muscleLogs, setMuscleLogs] = useState({});
 
   useEffect(() => {
@@ -144,17 +136,6 @@ function MuscleGroupMetricWidget({ userId }) {
           const sessions = await res.json();
           const groupedByMuscle = {};
 
-          // Sort chronologically first so each session becomes its own point
-          // in the right order on the timeline.
-          //
-          // NOTE: previously sessions were bucketed by `date.slice(5)`
-          // ("MM-DD"), which merged every session from the same calendar day
-          // into a single point (max 1RM, summed volume, averaged form).
-          // That meant logging several sets/sessions in one day never
-          // produced more than one point on the graph -- the headline
-          // number would update, but the chart stayed flat with a single
-          // dot, which is exactly the bug reported. Each session now gets
-          // its own point instead of being merged with same-day sessions.
           const sortedSessions = [...sessions].sort((a, b) => {
             const ta = a.date ? new Date(a.date).getTime() : 0;
             const tb = b.date ? new Date(b.date).getTime() : 0;
@@ -165,10 +146,8 @@ function MuscleGroupMetricWidget({ userId }) {
             const muscle = s.muscleGroup || getMuscleGroup(s.exercise);
             if (!groupedByMuscle[muscle]) groupedByMuscle[muscle] = [];
 
-            // Label is for display only now -- it no longer doubles as a
-            // merge key, so multiple sessions on the same day each still
-            // get plotted as separate points.
-            const label = s.date ? s.date.slice(5) : `#${i + 1}`;
+            const rawDate = s.date ? new Date(s.date) : new Date();
+            const label = !isNaN(rawDate.getTime()) ? rawDate.toISOString().split('T')[0] : `Day ${i + 1}`;
             const weight = Number(s.weight) || 0;
             const reps = s.reps?.length || Number(s.repCount) || 1;
             const volume = weight * reps;
@@ -176,7 +155,8 @@ function MuscleGroupMetricWidget({ userId }) {
             const oneRM = epley1RM(weight, reps);
 
             groupedByMuscle[muscle].push({
-              date: label,
+              rawDate: rawDate,
+              date: label.slice(5),
               oneRM,
               volume,
               formAccuracy: Math.round(score),
@@ -199,7 +179,24 @@ function MuscleGroupMetricWidget({ userId }) {
   };
 
   const currentConfig = metricConfig[metric];
-  const activePoints = muscleLogs[selectedMuscle] || [];
+  
+  const allPoints = muscleLogs[selectedMuscle] || [];
+  const filteredPoints = useMemo(() => {
+    if (allPoints.length === 0) return [];
+    if (timeframe === "lifetime") return allPoints;
+
+    const now = new Date();
+    let cutoff = new Date();
+
+    if (timeframe === "1week") cutoff.setDate(now.getDate() - 7);
+    else if (timeframe === "1month") cutoff.setMonth(now.getMonth() - 1);
+    else if (timeframe === "3months") cutoff.setMonth(now.getMonth() - 3);
+    else if (timeframe === "6months") cutoff.setMonth(now.getMonth() - 6);
+    else if (timeframe === "1year") cutoff.setFullYear(now.getFullYear() - 1);
+    else return allPoints;
+
+    return allPoints.filter(p => p.rawDate >= cutoff);
+  }, [allPoints, timeframe]);
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
@@ -211,21 +208,35 @@ function MuscleGroupMetricWidget({ userId }) {
           <div style={{ fontSize: 11, color: C.sub }}>Aggregated metrics across targeted muscle groups</div>
         </div>
 
-        <div style={{ display: "flex", background: C.surface, borderRadius: 8, padding: 3, border: `1px solid ${C.border}` }}>
-          {[
-            { id: "oneRM", label: "1RM" },
-            { id: "volume", label: "Volume" },
-            { id: "formAccuracy", label: "Form" }
-          ].map(m => (
-            <button key={m.id} onClick={() => setMetric(m.id)} style={{
-              background: metric === m.id ? currentConfig.color + "22" : "transparent",
-              border: metric === m.id ? `1px solid ${currentConfig.color}` : "none",
-              color: metric === m.id ? currentConfig.color : C.sub,
-              borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit"
-            }}>
-              {m.label}
-            </button>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <select value={timeframe} onChange={e => setTimeframe(e.target.value)} style={{
+            background: C.surface, border: `1px solid ${C.border}`, color: C.text,
+            borderRadius: 6, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", outline: "none", fontFamily: "inherit"
+          }}>
+            <option value="1week">1 Week</option>
+            <option value="1month">1 Month</option>
+            <option value="3months">3 Months</option>
+            <option value="6months">6 Months</option>
+            <option value="1year">1 Year</option>
+            <option value="lifetime">Lifetime</option>
+          </select>
+
+          <div style={{ display: "flex", background: C.surface, borderRadius: 8, padding: 3, border: `1px solid ${C.border}` }}>
+            {[
+              { id: "oneRM", label: "1RM" },
+              { id: "volume", label: "Volume" },
+              { id: "formAccuracy", label: "Form" }
+            ].map(m => (
+              <button key={m.id} onClick={() => setMetric(m.id)} style={{
+                background: metric === m.id ? currentConfig.color + "22" : "transparent",
+                border: metric === m.id ? `1px solid ${currentConfig.color}` : "none",
+                color: metric === m.id ? currentConfig.color : C.sub,
+                borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit"
+              }}>
+                {m.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -241,9 +252,9 @@ function MuscleGroupMetricWidget({ userId }) {
         ))}
       </div>
 
-      {activePoints.length === 0 ? (
+      {filteredPoints.length === 0 ? (
         <div style={{ textAlign: "center", padding: "30px 0", color: C.sub, fontSize: 12 }}>
-          No session activity recorded for {selectedMuscle} yet. Complete a workout to view performance graphs!
+          No session activity recorded for {selectedMuscle} in this timeframe. Complete a workout to view performance graphs!
         </div>
       ) : (
         <>
@@ -251,18 +262,12 @@ function MuscleGroupMetricWidget({ userId }) {
             <div>
               <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2 }}>{selectedMuscle} — {currentConfig.label}</div>
               <div style={{ fontSize: 32, fontWeight: 900, color: currentConfig.color, fontFamily: "'Barlow Condensed',sans-serif" }}>
-                {activePoints[activePoints.length - 1]?.[metric]} {currentConfig.unit}
+                {filteredPoints[filteredPoints.length - 1]?.[metric]} {currentConfig.unit}
               </div>
             </div>
           </div>
 
-          <LineChart points={activePoints} color={currentConfig.color} metricKey={metric} unit={currentConfig.unit} />
-
-          {activePoints.length === 1 && (
-            <div style={{ textAlign: "center", fontSize: 11, color: C.sub, marginTop: 10 }}>
-              Only one session logged for {selectedMuscle} so far — log another to start seeing a trend line.
-            </div>
-          )}
+          <LineChart points={filteredPoints} color={currentConfig.color} metricKey={metric} unit={currentConfig.unit} />
         </>
       )}
     </div>
@@ -379,10 +384,22 @@ function ReferralSection() {
   );
 }
 
-// ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
-
 export default function HomeDashboard() {
   const navigate = useNavigate();
+
+  // 🛡️ Role Guard: Automatically redirect trainers back to their own dashboard
+  useEffect(() => {
+    try {
+      const rawUser = localStorage.getItem("user");
+      const userRole = localStorage.getItem("userRole");
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        if (parsed.role === "trainer" || userRole === "trainer") {
+          navigate("/trainer-dashboard", { replace: true });
+        }
+      }
+    } catch (err) {}
+  }, [navigate]);
 
   let parsedUser = { name: "Athlete" };
   try {
@@ -441,13 +458,69 @@ export default function HomeDashboard() {
     fetchLiveTelemetry();
   }, [profileId]);
 
+  const handleViewAssessment = async () => {
+    if (!profileId) {
+      alert("No active user profile found.");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/posture/${profileId}/latest`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.record) {
+          const pdfUrl = data.record.pdfUrl || data.record.reportUrl || data.record.fileUrl;
+          if (pdfUrl) {
+            window.open(pdfUrl, '_blank');
+            return;
+          }
+
+          const reportWindow = window.open('', '_blank');
+          if (reportWindow) {
+            reportWindow.document.write(`
+              <html>
+                <head>
+                  <title>RepUps Posture Assessment Report</title>
+                  <style>
+                    body { font-family: 'Barlow', sans-serif; background: #0a0a0a; color: #eee; padding: 40px; }
+                    .card { background: #161616; border: 1px solid #222; border-radius: 12px; padding: 30px; max-width: 600px; margin: 0 auto; }
+                    h1 { color: #3B82F6; font-family: 'Barlow Condensed', sans-serif; font-size: 32px; margin-bottom: 5px; }
+                    .score { font-size: 48px; font-weight: 900; color: #3B82F6; margin: 15px 0; }
+                    .meta { color: #888; font-size: 14px; margin-bottom: 20px; }
+                    .section { margin-top: 20px; border-top: 1px solid #222; padding-top: 15px; }
+                    button { background: #3B82F6; color: #000; border: none; padding: 10px 20px; font-weight: 800; border-radius: 8px; cursor: pointer; margin-top: 20px; }
+                  </style>
+                </head>
+                <body>
+                  <div class="card">
+                    <h1>RepUps Posture Analysis</h1>
+                    <div class="meta">Athlete ID: ${profileId} | Date: ${new Date(data.record.createdAt || Date.now()).toLocaleDateString()}</div>
+                    <div class="score">Score: ${data.record.overallScore}/100</div>
+                    <div class="section">
+                      <h3>Biomechanical Planes</h3>
+                      <pre style="background: #111; padding: 15px; border-radius: 8px; overflow-x: auto; color: #C8F135;">${JSON.stringify(data.record.planes || {}, null, 2)}</pre>
+                    </div>
+                    <button onclick="window.print()">🖨️ Download / Print PDF Report</button>
+                  </div>
+                </body>
+              </html>
+            `);
+            reportWindow.document.close();
+            return;
+          }
+        }
+      }
+      alert("No saved posture assessment records found. Complete an assessment first!");
+    } catch (err) {
+      console.error("Failed to load posture report:", err);
+      navigate('/posture-assessment');
+    }
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'Barlow','Barlow Condensed',sans-serif", paddingBottom: "40px" }}>
       <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet"/>
 
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "28px 20px" }}>
-
-        {/* Dynamic Greeting */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div>
             <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 900, fontSize: 26, letterSpacing: 0.5 }}>
@@ -460,10 +533,8 @@ export default function HomeDashboard() {
           </div>
         </div>
 
-        {/* ─── MUSCLE GROUP MULTI-METRIC PERFORMANCE WIDGET ─── */}
         <MuscleGroupMetricWidget userId={profileId} />
 
-        {/* Real-Time Activity Rings */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2, marginBottom: 14, display: "flex", justifyContent: "space-between" }}>
             <span>Today's Live Telemetry</span>
@@ -475,7 +546,6 @@ export default function HomeDashboard() {
           </div>
         </div>
 
-        {/* Today's Plan + Posture Snapshot Cards */}
         <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
           <div style={{ flex: "1 1 260px", background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 18 }}>
             <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2, marginBottom: 10 }}>Today's Plan</div>
@@ -484,25 +554,31 @@ export default function HomeDashboard() {
             <div style={{ background: C.border, borderRadius: 99, height: 6, overflow: "hidden", marginBottom: 12 }}>
               <div style={{ width: `${planPct}%`, height: "100%", background: C.lime, borderRadius: 99 }} />
             </div>
-            <button onClick={() => navigate('/session')} style={{ width: "100%", background: C.lime, color: "#000", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
-              Start Workout →
+            <button onClick={() => navigate('/workout')} style={{ width: "100%", background: C.lime, color: "#000", border: "none", borderRadius: 8, padding: "10px 0", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+              start workout
             </button>
           </div>
 
-          <div style={{ flex: "1 1 200px", background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 18, textAlign: "center" }}>
-            <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2, marginBottom: 10 }}>Posture Score</div>
-            <div style={{ fontSize: 38, fontWeight: 900, color: C.blue, fontFamily: "'Barlow Condensed',sans-serif" }}>{postureScore}</div>
-            <div style={{ fontSize: 11, color: C.sub, marginBottom: 12 }}>out of 100</div>
-            <button onClick={() => navigate('/posture-assessment')} style={{ width: "100%", background: "transparent", border: `1px solid ${C.blue}`, color: C.blue, borderRadius: 8, padding: "8px 0", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-              View Assessment
-            </button>
+          <div style={{ flex: "1 1 200px", background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 18, textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2, marginBottom: 6 }}>Posture Score</div>
+              <div style={{ fontSize: 38, fontWeight: 900, color: C.blue, fontFamily: "'Barlow Condensed',sans-serif" }}>{postureScore}</div>
+              <div style={{ fontSize: 11, color: C.sub, marginBottom: 12 }}>out of 100</div>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <button onClick={handleViewAssessment} style={{ width: "100%", background: "transparent", border: `1px solid ${C.blue}`, color: C.blue, borderRadius: 8, padding: "7px 0", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
+                📄 View Assessment (PDF)
+              </button>
+              <button onClick={() => navigate('/posture-assessment')} style={{ width: "100%", background: C.blue, color: "#000", border: "none", borderRadius: 8, padding: "7px 0", fontWeight: 800, fontSize: 11, cursor: "pointer" }}>
+                + New Assessment
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Calorie Tracker Component */}
         <div style={{ marginBottom: 16 }}><CalorieTracker /></div>
 
-        {/* AI Coach Tip Note */}
         <div style={{ background: `linear-gradient(135deg,${C.lime}18,${C.lime}05)`, border: `1px solid ${C.lime}33`, borderRadius: 16, padding: 18, marginBottom: 16 }}>
           <div style={{ display: "flex", gap: 10 }}>
             <div style={{ fontSize: 22 }}>🤖</div>
@@ -513,7 +589,6 @@ export default function HomeDashboard() {
           </div>
         </div>
 
-        {/* Quick Navigation Links */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
           {quickLinks.map(l => (
             <div key={l.id} onClick={() => navigate(l.route)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 8px", textAlign: "center", cursor: "pointer", transition: "all 0.2s" }}>
@@ -523,7 +598,6 @@ export default function HomeDashboard() {
           ))}
         </div>
 
-        {/* Badges & Referral Modules */}
         <StreakBadges />
         <ReferralSection />
       </div>

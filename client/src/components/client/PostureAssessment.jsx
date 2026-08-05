@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles.css";
-import { usePostureCapture } from "../hooks/usePostureCapture";
-import {
-  analyzeFrontalPosture,
-  analyzeProfilePosture,
-  analyzeBackPosture,
-  analyzeTransversePlane,
-  buildPostureReport,
-  buildCalibration
-} from "../utils/postureEngine";
-import { generatePosturePDF } from "../utils/pdfGenerator";
-import repUpLogo from "../assets/repup-logo.jpeg";
+import "../../styles.css";
+import { usePostureCapture} from "../../hooks/usePostureCapture";
+import { 
+  analyzeFrontalPosture, 
+  analyzeProfilePosture, 
+  analyzeBackPosture, 
+  analyzeTransversePlane, 
+  buildPostureReport, 
+  buildCalibration 
+} from "../../utils/postureEngine";
+import { generatePosturePDF } from "../../utils/pdfGenerator";
+import repUpLogo from "../../assets/repup-logo.jpeg";
 
 const STEP_CONFIG = {
   1: {

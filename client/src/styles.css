@@ -1428,3 +1428,387 @@ html, body, #root {
     max-width: 90%;
   }
 }
+
+/* =====================================================================
+   TRAINER PORTAL — APP SHELL
+   Rendered outside #app, so it opts back out of the global
+   html/body/#root overflow:hidden rule above to get normal page scroll.
+   ===================================================================== */
+.trainer-shell {
+  min-height: 100dvh;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  color: var(--ink);
+  font-family: 'Barlow', 'Barlow Condensed', sans-serif;
+  /* Center as a compressed, app-like column on wide/mobile viewports.
+     Mirrors the same centering pattern used by .start / .report / .dashboard-body. */
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.trainer-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: clamp(10px, 2vw, 14px) clamp(14px, 4vw, 32px);
+  padding-top: max(12px, env(safe-area-inset-top));
+  background: rgba(18, 20, 23, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+
+.trainer-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.trainer-topbar-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent, var(--go));
+  box-shadow: 0 0 18px rgba(200,255,77,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.trainer-topbar-title {
+  font-family: var(--title-font);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trainer-topbar-subtitle {
+  font-size: 10px;
+  color: var(--ink-dim);
+  margin-top: -2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trainer-topbar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  flex-shrink: 0;
+}
+
+.trainer-topbar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, var(--go));
+  box-shadow: 0 0 10px var(--accent, var(--go));
+}
+
+.trainer-menu-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.trainer-menu-btn:active {
+  transform: scale(.95);
+}
+.trainer-menu-btn span {
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+
+.trainer-menu-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bad);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg);
+}
+
+/* Sidebar drawer */
+.trainer-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,4,12,0.6);
+  backdrop-filter: blur(2px);
+  z-index: 90;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.trainer-sidebar-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.trainer-sidebar {
+  width: 260px;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 95;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+}
+.trainer-sidebar.open {
+  transform: translateX(0);
+  box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+}
+
+.trainer-sidebar-header {
+  padding: 22px 20px 18px;
+  padding-top: max(22px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trainer-sidebar-close {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.trainer-sidebar-profile {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trainer-sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  scrollbar-width: none;
+}
+.trainer-sidebar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.trainer-nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  font-family: inherit;
+  margin-bottom: 2px;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+.trainer-nav-item:active {
+  transform: scale(.98);
+}
+.trainer-nav-item.active {
+  border-color: rgba(200,255,77,0.35);
+  background: rgba(200,255,77,0.1);
+  box-shadow: 0 0 14px rgba(200,255,77,0.12);
+  color: var(--go);
+  font-weight: 600;
+}
+.trainer-nav-icon {
+  font-size: 15px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.trainer-nav-badge {
+  margin-left: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.trainer-sidebar-footer {
+  padding: 12px 10px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+}
+
+/* Content area */
+.trainer-main {
+  padding: clamp(16px, 4vw, 28px) clamp(14px, 4vw, 32px);
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Shared page chrome */
+.trainer-card {
+  background: rgba(18, 20, 23, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+
+.trainer-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.trainer-avatar {
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent, var(--go)) 15%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--accent, var(--go)) 45%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--accent, var(--go));
+  flex-shrink: 0;
+  font-family: var(--title-font);
+  letter-spacing: 0.5px;
+}
+
+.trainer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  background: color-mix(in srgb, var(--accent, var(--go)) 15%, transparent);
+  color: var(--accent, var(--go));
+  border: 1px solid color-mix(in srgb, var(--accent, var(--go)) 30%, transparent);
+}
+
+.trainer-progbar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.trainer-progbar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent, var(--go));
+  transition: width 0.8s ease;
+}
+
+.trainer-btn-primary,
+.trainer-btn-ghost,
+.trainer-btn-soft {
+  border-radius: 10px;
+  font-family: var(--title-font);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 10px 20px;
+  min-height: 44px;
+  transition: transform 0.1s ease;
+}
+.trainer-btn-primary:active,
+.trainer-btn-ghost:active,
+.trainer-btn-soft:active {
+  transform: scale(.97);
+}
+.trainer-btn-primary {
+  background: var(--accent, var(--go));
+  border: none;
+  color: #00121A;
+  box-shadow: 0 0 18px rgba(200,255,77,0.4);
+}
+.trainer-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  font-family: var(--sans);
+  font-weight: 400;
+}
+.trainer-btn-soft {
+  background: color-mix(in srgb, var(--accent, var(--go)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, var(--go)) 30%, transparent);
+  color: var(--accent, var(--go));
+}
+
+.trainer-hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.trainer-hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 719px) {
+  .trainer-sidebar {
+    width: min(80vw, 300px);
+  }
+}

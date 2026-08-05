@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { saveSession } from '../api';
+import { saveSession } from "../../api";
 
 export default function ReportView({ report, onAgain, onDone, onPreview, isHistorical = false }) {
   const [saveState, setSaveState] = useState(isHistorical ? 'saved' : 'saving');

@@ -5,7 +5,7 @@ import {
   searchExerciseLibrary, 
   getExercisesFor, 
   getCameraHint 
-} from "../hooks/exercises";
+} from "../../hooks/exercises";
 
 const C = {
   bg: "#0a0a0a", surface: "#111111", card: "#161616", border: "#222222",

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import "../styles.css";
+import "../../styles.css";
 
 // ── UI Theme & Constants ────────────────────────────────────────────────────
 const C = {
