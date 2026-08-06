@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
-
+import { signToken } from "../middleware/auth.js";
 const router = express.Router();
 
 // ── REGISTER (Sign Up) ────────────────────────────────────────────────────────
@@ -21,6 +21,7 @@ router.post("/register", async (req, res) => {
       fitnessLevel,
       goal,
     } = req.body;
+    
 
     // 1. Basic validation
     if (!name || !email || !password) {
@@ -64,6 +65,7 @@ router.post("/register", async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Account created successfully!",
+      token: signToken(savedUser),
       user: {
         _id: savedUser._id, // 🔑 Added standard Mongoose _id
         id: savedUser._id,  // 🔑 Retained alias for compatibility
@@ -122,6 +124,7 @@ router.post("/signin", async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Signed in successfully!",
+      token: signToken(user),
       user: {
         _id: user._id, // 🔑 Added standard Mongoose _id
         id: user._id,  // 🔑 Retained alias for compatibility

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const C = {
   bg: "#0a0a0a", surface: "#111111", card: "#161616", border: "#222222",
@@ -36,13 +37,96 @@ function MatchBar({ pct }) {
   );
 }
 
+const formatLocation = (loc) => {
+  if (!loc) return "Nearby Studio";
+  if (typeof loc === "string") return loc;
+  if (typeof loc === "object" && loc.coordinates) {
+    return `Coordinates: ${loc.coordinates[1].toFixed(2)}, ${loc.coordinates[0].toFixed(2)}`;
+  }
+  return "Nearby Studio";
+};
+
+// 📄 TrainerProfileModal placed cleanly right here in TrainerDiscovery.jsx
+function TrainerProfileModal({ trainer, onClose, onMessage, onBook }) {
+  if (!trainer) return null;
+  const initials = trainer.name ? trainer.name.split(" ").map(n => n[0]).join("").toUpperCase() : "TR";
+  const specialties = trainer.specialties || ["Strength", "Muscle Gain"];
+  const displayLocation = formatLocation(trainer.gym || trainer.location);
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "#000000cc", display: "flex",
+      alignItems: "center", justifyContent: "center", zIndex: 150, padding: 20,
+    }} onClick={onClose}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}
+        onClick={e => e.stopPropagation()}>
+        
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+          <div style={{
+            width: 68, height: 68, borderRadius: "50%", flexShrink: 0,
+            background: `linear-gradient(135deg, ${C.lime}, ${C.blue})`,
+            color: "#000", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
+          }}>
+            {initials}
+          </div>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 900, fontFamily: "'Barlow Condensed',sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+              {trainer.name} {trainer.verified && <span style={{ fontSize: 12, color: C.blue }} title="Verified">✔</span>}
+            </div>
+            <div style={{ fontSize: 13, color: C.sub, marginTop: 2 }}>{trainer.title || "Elite Fitness Coach"}</div>
+            <div style={{ fontSize: 12, color: C.lime, marginTop: 4 }}>{trainer.distanceKm ?? 2.5} km away · {displayLocation}</div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, background: C.surface, padding: 14, borderRadius: 12, marginBottom: 16, textAlign: "center" }}>
+          <div>
+            <div style={{ fontSize: 10, color: C.sub, textTransform: "uppercase" }}>Rating</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: C.orange }}><Stars rating={trainer.rating} /> ({trainer.reviewsCount || 12})</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: C.sub, textTransform: "uppercase" }}>Hourly Rate</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: C.lime, fontFamily: "'Barlow Condensed',sans-serif" }}>₹{trainer.pricing?.personalTraining || 2500}</div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 12, color: C.sub, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>Specialties</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
+          {specialties.map(g => (
+            <span key={g} style={{
+              fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99,
+              background: (SPECIALTY_COLOR[g] || C.muted) + "1f", color: SPECIALTY_COLOR[g] || C.sub,
+              border: `1px solid ${(SPECIALTY_COLOR[g] || C.muted)}44`,
+            }}>
+              {g}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 12, color: C.sub, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6 }}>About Coach</div>
+        <div style={{ fontSize: 13, color: C.text, lineHeight: 1.6, marginBottom: 24, background: C.surface, padding: 14, borderRadius: 12 }}>
+          {trainer.bio || "Certified fitness expert specializing in results-driven programming, hypertrophy, and biomechanical optimization."}
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onMessage} style={{ flex: 1, padding: "12px 0", borderRadius: 10, background: "transparent", border: `1px solid ${C.blue}`, color: C.blue, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+            💬 Message Coach
+          </button>
+          <button onClick={onBook} style={{ flex: 1, padding: "12px 0", borderRadius: 10, background: C.lime, border: "none", color: "#000", fontWeight: 900, fontSize: 13, cursor: "pointer" }}>
+            📅 Book Session
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SlotPickerModal({ trainer, onClose, onConfirm }) {
   const [selected, setSelected] = useState(null);
   const slots = trainer.slots || ["Today 5:00 PM", "Tomorrow 7:00 AM"];
   return (
     <div style={{
       position: "fixed", inset: 0, background: "#000000cc", display: "flex",
-      alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20,
+      alignItems: "center", justifyContent: "center", zIndex: 160, padding: 20,
     }} onClick={onClose}>
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 22, width: "100%", maxWidth: 380 }}
         onClick={e => e.stopPropagation()}>
@@ -89,7 +173,7 @@ function SlotPickerModal({ trainer, onClose, onConfirm }) {
   );
 }
 
-function TrainerCard({ trainer, matchPct, expanded, onExpand, onMessage, onBook }) {
+function TrainerCard({ trainer, matchPct, onProfileView, onMessage, onBook }) {
   const initials = trainer.name ? trainer.name.split(" ").map(n => n[0]).join("").toUpperCase() : "TR";
   const price = trainer.pricing?.personalTraining || 2500;
   const specialties = trainer.specialties || ["Strength", "Muscle Gain"];
@@ -136,16 +220,9 @@ function TrainerCard({ trainer, matchPct, expanded, onExpand, onMessage, onBook 
 
           {matchPct !== null && <div style={{ marginBottom: 10 }}><MatchBar pct={matchPct} /></div>}
 
-          {expanded && (
-            <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.6, marginBottom: 12, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-              {trainer.bio || "Certified fitness expert specializing in results-driven programming."}
-              <div style={{ marginTop: 6, color: C.lime, fontWeight: 700 }}>Location: {trainer.gym || trainer.location || "Nearby Studio"}</div>
-            </div>
-          )}
-
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button onClick={onExpand} style={{ flex: 1, padding: "9px 0", borderRadius: 8, background: "transparent", border: `1px solid ${C.border}`, color: C.sub, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-              {expanded ? "Hide profile" : "View profile"}
+            <button onClick={onProfileView} style={{ flex: 1, padding: "9px 0", borderRadius: 8, background: "transparent", border: `1px solid ${C.border}`, color: C.sub, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              View profile
             </button>
             <button onClick={onMessage} style={{ flex: 1, padding: "9px 0", borderRadius: 8, background: "transparent", border: `1px solid ${C.blue}`, color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
               Message
@@ -160,17 +237,18 @@ function TrainerCard({ trainer, matchPct, expanded, onExpand, onMessage, onBook 
   );
 }
 
-export default function TrainerDiscovery({ onOpenChat }) {
+export default function TrainerDiscovery() {
+  const navigate = useNavigate();
   const [trainers, setTrainers] = useState([]);
   const [selectedGoals, setSelectedGoals] = useState([]);
   const [search, setSearch] = useState("");
   const [maxDistance, setMaxDistance] = useState(15);
   const [sortBy, setSortBy] = useState("match");
-  const [expandedId, setExpandedId] = useState(null);
+  
+  const [viewingProfileTrainer, setViewingProfileTrainer] = useState(null);
   const [bookingTrainer, setBookingTrainer] = useState(null);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
 
-  // 📍 Fetch live nearby trainers from the database based on real GPS geolocation
   useEffect(() => {
     const fetchNearbyTrainers = () => {
       if (navigator.geolocation) {
@@ -187,8 +265,7 @@ export default function TrainerDiscovery({ onOpenChat }) {
               console.error("Error fetching nearby trainers:", err);
             }
           },
-          (err) => {
-            console.warn("Geolocation access denied. Fetching default Mumbai region trainers.");
+          () => {
             fetchDefaultTrainers();
           }
         );
@@ -199,7 +276,6 @@ export default function TrainerDiscovery({ onOpenChat }) {
 
     const fetchDefaultTrainers = async () => {
       try {
-        // Fallback coordinates for Mumbai center
         const res = await fetch(`/api/trainers/nearby?lng=72.8777&lat=19.0760&maxDistanceKm=${maxDistance}`);
         const data = await res.json();
         if (data.success) setTrainers(data.trainers);
@@ -212,6 +288,11 @@ export default function TrainerDiscovery({ onOpenChat }) {
   }, [maxDistance]);
 
   const toggleGoal = (g) => setSelectedGoals(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]);
+
+  const handleOpenChat = (trainer) => {
+    const trainerId = trainer._id || trainer.id;
+    navigate("/trainer-chat", { state: { trainerId, trainer } });
+  };
 
   const results = useMemo(() => {
     let list = trainers.filter(t => (t.distanceKm ?? 0) <= maxDistance);
@@ -287,7 +368,7 @@ export default function TrainerDiscovery({ onOpenChat }) {
             <div style={{ fontSize: 12 }}>
               <strong style={{ color: C.lime }}>Booked ✓</strong> — video call with {confirmedBooking.trainer.name} on {confirmedBooking.slot}.
             </div>
-            <button onClick={() => onOpenChat && onOpenChat(confirmedBooking.trainer)} style={{ background: "transparent", border: `1px solid ${C.lime}`, color: C.lime, borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+            <button onClick={() => handleOpenChat(confirmedBooking.trainer)} style={{ background: "transparent", border: `1px solid ${C.lime}`, color: C.lime, borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
               Open chat
             </button>
           </div>
@@ -304,13 +385,29 @@ export default function TrainerDiscovery({ onOpenChat }) {
             key={t._id || t.id}
             trainer={t}
             matchPct={t.matchPct}
-            expanded={expandedId === (t._id || t.id)}
-            onExpand={() => setExpandedId(expandedId === (t._id || t.id) ? null : (t._id || t.id))}
-            onMessage={() => onOpenChat && onOpenChat(t)}
+            onProfileView={() => setViewingProfileTrainer(t)}
+            onMessage={() => handleOpenChat(t)}
             onBook={() => setBookingTrainer(t)}
           />
         ))}
       </div>
+
+      {viewingProfileTrainer && (
+        <TrainerProfileModal
+          trainer={viewingProfileTrainer}
+          onClose={() => setViewingProfileTrainer(null)}
+          onMessage={() => {
+            const tr = viewingProfileTrainer;
+            setViewingProfileTrainer(null);
+            handleOpenChat(tr);
+          }}
+          onBook={() => {
+            const tr = viewingProfileTrainer;
+            setViewingProfileTrainer(null);
+            setBookingTrainer(tr);
+          }}
+        />
+      )}
 
       {bookingTrainer && (
         <SlotPickerModal

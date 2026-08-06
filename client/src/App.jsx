@@ -11,8 +11,9 @@ import PostureAssessment from "./components/client/PostureAssessment";
 import HomeDashboard from "./components/client/HomeDashboard";
 import WorkoutSessionPlayer from "./components/client/WorkoutSessionPlayer"; 
 import RepUpsSignup from "./components/signup"; 
+import TrainerChat from "./components/client/Trainerchat";
 
-// 🏋️ Trainer Portal Component (Adjust path if TrainerDashboard.jsx is inside src/components/trainer/)
+// 🏋️ Trainer Portal Component
 import TrainerDashboard from "./trainer/pages/Trainerdashboard";
 
 // 🎣 Hooks
@@ -126,6 +127,13 @@ function ReportRouteWrapper() {
   );
 }
 
+// Wrapper to pass router location state (trainer info) into TrainerChat safely
+function TrainerChatWrapper() {
+  const location = useLocation();
+  const passedTrainerId = location.state?.trainerId || null;
+  return <TrainerChat initialTrainerId={passedTrainerId} />;
+}
+
 export default function App() {
   return (
     <Router>
@@ -141,6 +149,7 @@ export default function App() {
         <Route path="/ai-coach" element={<AIOnboardingChat />} /> 
         <Route path="/community" element={<CommunityFeed />} />
         <Route path="/trainers" element={<TrainerDiscovery />} />
+        <Route path="/trainer-chat" element={<TrainerChatWrapper />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

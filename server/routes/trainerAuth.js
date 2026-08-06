@@ -1,6 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import Trainer from '../models/Trainer.js';
+import { signToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -171,6 +172,7 @@ router.post('/register', async (req, res) => {
     return res.status(201).json({
       success: true,
       message: 'Trainer registered successfully!',
+      token: signToken(savedTrainer, 'trainer'),
       user: {
         _id: savedTrainer._id,
         id: savedTrainer._id,
@@ -211,6 +213,7 @@ router.post('/signin', async (req, res) => {
     return res.status(200).json({
       success: true,
       message: 'Signed in successfully!',
+      token: signToken(trainer, 'trainer'),
       user: {
         _id: trainer._id,
         id: trainer._id,

@@ -1,12 +1,18 @@
 import express from 'express';
 import Message from '../models/Message.js';
+import { requireAuth, isPairMember } from '../middleware/auth.js';
+import { emitToPair } from '../sockets/index.js';
 
 const router = express.Router();
+router.use(requireAuth);
 
 // 📍 GET: Fetch all active client chat conversations for a given trainer
 router.get('/conversations/:trainerId', async (req, res) => {
   try {
     const { trainerId } = req.params;
+    if (req.user.role === 'trainer' && String(req.user.id) !== trainerId) {
+      return res.status(403).json({ success: false, error: "Cannot view another trainer's conversations." });
+    }
 
     // Aggregate unique clients messaged by this trainer to build the sidebar list
     const messages = await Message.find({ trainerId }).sort({ createdAt: -1 });
@@ -41,6 +47,9 @@ router.get('/thread', async (req, res) => {
     if (!trainerId || !clientId) {
       return res.status(400).json({ success: false, error: 'trainerId and clientId are required.' });
     }
+    if (!isPairMember(req, trainerId, clientId)) {
+      return res.status(403).json({ success: false, error: 'Not part of this conversation.' });
+    }
 
     const thread = await Message.find({ trainerId, clientId }).sort({ createdAt: 1 });
 
@@ -60,10 +69,14 @@ router.get('/thread', async (req, res) => {
 // 📍 POST: Send a new message
 router.post('/send', async (req, res) => {
   try {
-    const { trainerId, clientId, clientName, clientAvatar, sender, text } = req.body;
+    const { trainerId, clientId, clientName, clientAvatar, text } = req.body;
+    const sender = req.user.role; // trust the token, never the body — stops sender spoofing
 
-    if (!trainerId || !clientId || !text || !sender) {
+    if (!trainerId || !clientId || !text) {
       return res.status(400).json({ success: false, error: 'Missing required message fields.' });
+    }
+    if (!isPairMember(req, trainerId, clientId)) {
+      return res.status(403).json({ success: false, error: 'Not part of this conversation.' });
     }
 
     const newMessage = new Message({
@@ -77,6 +90,7 @@ router.post('/send', async (req, res) => {
     });
 
     await newMessage.save();
+    emitToPair(trainerId, clientId, 'message:new', { from: sender, text, time: 'Just now' });
 
     return res.status(201).json({
       success: true,
