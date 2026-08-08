@@ -1,4 +1,4 @@
-// ─── Mock data ────────────────────────────────────────────────────────────────
+/* Mock data */
 export const TRAINER = {
   name: "Vikram Nair",
   title: "Elite Strength & Corrective Exercise Coach",
@@ -15,10 +15,10 @@ export const TRAINER = {
 
 export const CLIENTS = [
   { id:1, avatar:"AM", name:"Arjun Mehta",   goal:"Muscle Gain",  level:"Intermediate", progress:82, streak:14, lastActive:"2h ago",  nextSession:"Today, 5 PM",  status:"active",  issues:[] },
-  { id:2, avatar:"PS", name:"Priya Sharma",  goal:"Fat Loss",     level:"Beginner",     progress:54, streak:7,  lastActive:"5h ago",  nextSession:"Tomorrow, 7 AM",status:"active",  issues:["Knee valgus"] },
+  { id:2, avatar:"PS", name:"Priya Sharma",  goal:"Fat Loss",     level:"Beginner",     progress:54, streak:7,  lastActive:"5h ago",  nextSession:"Tomorrow, 7 AM",status:"active",  issues:["Knee"] },
   { id:3, avatar:"RD", name:"Rohan Das",     goal:"Powerlifting", level:"Advanced",     progress:91, streak:31, lastActive:"1d ago",  nextSession:"Thu, 6 PM",    status:"active",  issues:[] },
-  { id:4, avatar:"NK", name:"Neha Kapoor",   goal:"Flexibility",  level:"Beginner",     progress:43, streak:3,  lastActive:"3d ago",  nextSession:"Fri, 8 AM",    status:"inactive",issues:["Lower back pain"] },
-  { id:5, avatar:"SR", name:"Siddharth Roy", goal:"Weight Loss",  level:"Intermediate", progress:68, streak:21, lastActive:"1h ago",  nextSession:"Today, 7 PM",  status:"active",  issues:[] },
+  { id:4, avatar:"NK", name:"Neha Kapoor",   goal:"Flexibility",  level:"Beginner",     progress:43, streak:3,  lastActive:"3d ago",  nextSession:"Fri, 8 AM",    status:"inactive",issues:["Lower back"] },
+  { id:5, avatar:"SR", name:"Siddharth Roy", avatar:"SR", goal:"Weight Loss",  level:"Intermediate", progress:68, streak:21, lastActive:"1h ago",  nextSession:"Today, 7 PM",  status:"active",  issues:[] },
 ];
 
 export const APPOINTMENTS = [
@@ -38,9 +38,9 @@ export const MESSAGES = [
 ];
 
 export const QNA = [
-  { id:1, client:"Ananya Singh",  avatar:"AS", question:"Why does my knee cave in during squats even when I try to fix it?",    tags:["Biomechanics","Squat","Knee"],    time:"2h ago",  aiAnswered:true,  replies:0 },
-  { id:2, client:"Dev Patel",     avatar:"DP", question:"How do I fix my rounded upper back during deadlifts?",                 tags:["Posture","Deadlift","Back"],       time:"4h ago",  aiAnswered:true,  replies:1 },
-  { id:3, client:"Meera Joshi",   avatar:"MJ", question:"I feel my right side working more than my left during pull-ups. Why?", tags:["Imbalance","Pull-ups","Shoulder"], time:"Yesterday",aiAnswered:true, replies:0 },
+  { id:1, client:"Ananya Singh",  avatar:"AS", question:"Why does my knee cave in during squats even when I try to fix it?",    tags:["Biomechanics","Squat","Knee"],    time:"2h ago",  aiAnswered:false, replies:0 },
+  { id:2, client:"Dev Patel",     avatar:"DP", question:"How do I fix my rounded upper back during deadlifts?",                 tags:["Posture","Deadlift","Back"],       time:"4h ago",  aiAnswered:false, replies:0 },
+  { id:3, client:"Meera Joshi",   avatar:"MJ", question:"I feel my right side working more than my left during pull-ups. Why?", tags:["Imbalance","Pull-ups","Shoulder"], time:"Yesterday", aiAnswered:false, replies:0 },
   { id:4, client:"Rahul Verma",   avatar:"RV", question:"What's the best approach for building strength as a beginner?",        tags:["Beginner","Strength","Programming"],time:"2d ago", aiAnswered:false, replies:0 },
 ];
 
@@ -60,9 +60,9 @@ export const ASSESSMENTS = [
 ];
 
 export const REVIEWS = [
-  { id:1, client:"Arjun Mehta",   avatar:"AM", overall:5, knowledge:5, communication:5, professionalism:5, value:5, text:"Vikram completely transformed my training. My squat form is unrecognizable from where I started.", date:"2 weeks ago" },
-  { id:2, client:"Priya Sharma",  avatar:"PS", overall:5, knowledge:5, communication:4, professionalism:5, value:4, text:"Lost 8kg in 3 months and actually enjoyed the process. Highly recommend.", date:"1 month ago" },
-  { id:3, client:"Rohan Das",     avatar:"RD", overall:5, knowledge:5, communication:5, professionalism:5, value:5, text:"Best investment I've made. My deadlift went from 120kg to 180kg in 6 months.", date:"2 months ago" },
+  { id:1, client:"Arjun Mehta",   avatar:"AM", overall:5, knowledge:5, communication:5, professionalism:5, value:5, text:"Vikram completely transformed my training...", date:"Jul 28" },
+  { id:2, client:"Priya Sharma",  avatar:"PS", overall:5, knowledge:5, communication:4, professionalism:5, value:4, text:"Lost 8kg in 3 months...", date:"Jul 27" },
+  { id:3, client:"Rohan Das",     avatar:"RD", overall:5, knowledge:5, communication:5, professionalism:5, value:5, text:"Best investment I've made...", date:"Jul 22" },
 ];
 
 export const EARNINGS_DATA = [
@@ -112,17 +112,10 @@ export const HELP_TOPICS = [
   { id:5, q:"How do I upload a new certification?", a:"Go to My Profile → Certifications → Upload New Certificate. Our team verifies new certificates within 2–3 business days." },
 ];
 
-// ─── NAV SIDEBAR ─────────────────────────────────────────────────────────────
 export const NAV_ITEMS = [
   { id:"dashboard",    icon:"◈",  label:"Dashboard"     },
-  { id:"clients",      icon:"👥", label:"My Clients"    },
   { id:"appointments", icon:"📅", label:"Appointments"  },
   { id:"calendar",     icon:"🗓️", label:"Calendar"      },
-  { id:"messages",     icon:"💬", label:"Messages"      },
-  { id:"notifications",icon:"🔔", label:"Notifications" },
-  { id:"qna",          icon:"❓", label:"Q&A"           },
-  { id:"plans",        icon:"📋", label:"Workout Plans" },
-  { id:"assessments",  icon:"🧍", label:"Assessments"   },
   { id:"reviews",      icon:"⭐", label:"Reviews"       },
   { id:"earnings",     icon:"₹",  label:"Earnings"      },
   { id:"billing",      icon:"🧾", label:"Billing"       },
