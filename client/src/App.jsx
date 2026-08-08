@@ -13,6 +13,7 @@ import WorkoutSessionPlayer from "./components/client/WorkoutSessionPlayer";
 import RepUpsSignup from "./components/signup"; 
 import TrainerChat from "./components/client/Trainerchat";
 import TrainerProfileView from "./components/client/TrainerProfileView";
+import BookSessionView from "./components/client/BookSessionView";
 
 // 🏋️ Trainer Portal Component
 import TrainerDashboard from "./trainer/pages/Trainerdashboard";
@@ -152,7 +153,7 @@ function TrainerProfileRouteWrapper() {
       trainerId={passedTrainerId}
       onBack={() => navigate(-1)}
       onMessage={() => navigate('/trainer-chat', { state: { trainerId: passedTrainerId } })}
-      onScheduleCall={() => navigate('/trainer-chat', { state: { trainerId: passedTrainerId } })}
+      onScheduleCall={() => navigate('/book-session?trainerId=' + passedTrainerId)}
     />
   );
 }
@@ -174,6 +175,7 @@ export default function App() {
         <Route path="/trainers" element={<TrainerDiscovery />} />
         <Route path="/trainer-chat" element={<TrainerChatWrapper />} />
         <Route path="/trainer-profile" element={<TrainerProfileRouteWrapper />} />
+        <Route path="/book-session" element={<BookSessionView />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

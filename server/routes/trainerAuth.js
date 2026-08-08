@@ -5,6 +5,22 @@ import { signToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// 📍 GET: list trainers (supports exclude and limit) - used by client for similar trainers
+router.get('/', async (req, res) => {
+  try {
+    const { exclude, limit } = req.query;
+    const query = {};
+    if (exclude) query._id = { $ne: exclude };
+    const lim = Math.min(Math.max(parseInt(limit || '10', 10) || 10, 1), 50);
+
+    const trainers = await Trainer.find(query).select('-password').limit(lim);
+    return res.status(200).json({ success: true, trainers });
+  } catch (err) {
+    console.error('❌ List Trainers Error:', err);
+    return res.status(500).json({ success: false, error: 'Server error while listing trainers.' });
+  }
+});
+
 // 📍 GET: Find nearby trainers using MongoDB geospatial $near query
 router.get('/nearby', async (req, res) => {
   try {
@@ -56,6 +72,22 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Number((R * c).toFixed(1));
 }
+
+// 📍 GET: trainer reviews (optional endpoint). Return empty array if not implemented.
+router.get('/:id/reviews', async (req, res) => {
+  try {
+    const trainerId = req.params.id;
+    if (!trainerId || trainerId.length !== 24) {
+      return res.status(400).json({ success: false, error: 'Invalid trainer ID format.' });
+    }
+
+    // Placeholder: no dedicated reviews model yet — return empty array so client handles empty state.
+    return res.status(200).json({ success: true, reviews: [] });
+  } catch (err) {
+    console.error('❌ Fetch Reviews Error:', err);
+    return res.status(500).json({ success: false, error: 'Server error while fetching reviews.' });
+  }
+});
 
 // 📍 GET: Fetch single trainer profile by ID (Strict check, no silent fallback)
 router.get('/:id', async (req, res) => {
@@ -110,7 +142,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// ── REGISTER (Sign Up) ────────────────────────────────────────────────────────
+// ── REGISTER (Sign Up) ───────────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
     const { 
@@ -180,7 +212,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// ── SIGN IN ───────────────────────────────────────────────────────────────────
+// ── SIGN IN ───────────────────────────────────────────────────────────
 router.post('/signin', async (req, res) => {
   try {
     const { email, password } = req.body;

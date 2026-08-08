@@ -78,7 +78,7 @@ export default function TrainerDashboard() {
     existing:     <ActiveClientProfile onNavigate={navigateTo} />,
     prospective:  <ClientRequestProfile onNavigate={navigateTo} />,
     appointments: <AppointmentsView />,
-    calendar:     <CalendarView />,
+    calendar:     <CalendarView trainerId={trainerData?._id} />,
     messages:     <MessagesView />,
     notifications:<NotificationsView />,
     qna:          <QnAView />,
