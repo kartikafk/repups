@@ -1,8 +1,8 @@
 import { C, useBreakpoint } from "../theme"; // Correct if theme.js is in src/trainer/theme.js
 import { APPOINTMENTS, MESSAGES, CLIENTS, ASSESSMENTS } from "../mockData"; // Correct if mockData.js is in src/trainer/mockData.js
-import { Card, SectionLabel, Ring, Avatar, ProgBar, TrainerStreakBadges } from "../components"; // Correct if components.jsx is in src/trainer/components.jsx
+import { Card, SectionLabel, Ring, Avatar, ProgBar, ClientActionButtons } from "../components"; // swapped TrainerStreakBadges for ClientActionButtons
 
-// ─── VIEW: DASHBOARD ─────────────────────────────────────────────────────────
+// ─── VIEW: DASHBOARD ────────────────────────────────────────────────────────[...]
 export default function DashboardView({ onNav, trainer }) {
   const { isMobile, isTablet } = useBreakpoint();
 
@@ -65,8 +65,11 @@ export default function DashboardView({ onNav, trainer }) {
         </div>
       </Card>
 
-      {/* Streak & Badges */}
-      <TrainerStreakBadges />
+      {/* Client actions (replaces Streak & Badges) */}
+      <ClientActionButtons
+        onMessage={() => onNav && onNav("messages")}
+        onViewClients={() => onNav && onNav("clients")}
+      />
 
       {/* Main grid */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile || isTablet ? "1fr" : "1fr 1fr", gap: 18 }}>
@@ -101,10 +104,10 @@ export default function DashboardView({ onNav, trainer }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {MESSAGES.slice(0, 3).map(m => (
-              <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.card2, borderRadius: 10, border: `1px solid ${m.unread ? `${C.lime}30` : C.border2}`, cursor: "pointer" }} onClick={() => onNav("messages")}>
+              <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.card2, borderRadius: 10, border: `1px solid ${m.unread ? `${C.lime}30` : C.border2}` }}>
                 <div style={{ position: "relative" }}>
                   <Avatar initials={m.avatar} size={34} />
-                  {m.unread > 0 && <div style={{ position: "absolute", top: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: C.red, color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${C.card2}` }}>{m.unread}</div>}
+                  {m.unread > 0 && <div style={{ position: "absolute", top: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: C.red, color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{m.unread}</div>}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{m.name}</div>
