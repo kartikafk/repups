@@ -1,25 +1,31 @@
 import { useState, useEffect } from "react";
-import { C, useBreakpoint } from "../../trainer/theme";
-import { NOTIFICATIONS, NAV_ITEMS } from "../../trainer/mockData";
-import { Avatar, Sidebar } from "../../trainer/components";
+import { C, useBreakpoint } from "../theme";
+import { NOTIFICATIONS, NAV_ITEMS } from "../mockData";
+import { Avatar, Sidebar } from "../components";
 
-import DashboardView from "../../trainer/pages/DashboardView";
-import ClientsView from "../../trainer/pages/ClientsView";
-import ClientDetailView from "../../trainer/pages/ClientDetailView";
-import AppointmentsView from "../../trainer/pages/AppointmentsView";
-import CalendarView from "../../trainer/pages/CalendarView";
-import MessagesView from "../../trainer/pages/MessagesView";
-import NotificationsView from "../../trainer/pages/NotificationsView";
-import QnAView from "../../trainer/pages/QnAView";
-import PlansView from "../../trainer/pages/PlansView";
-import ProgramBuilderView from "../../trainer/pages/ProgramBuilderView";
-import AssessmentsView from "../../trainer/pages/AssessmentsView";
-import ReviewsView from "../../trainer/pages/ReviewsView";
-import EarningsView from "../../trainer/pages/EarningsView";
-import BillingView from "../../trainer/pages/BillingView";
-import ProfileView from "../../trainer/pages/ProfileView";
-import SettingsView from "../../trainer/pages/SettingsView";
-import HelpView from "../../trainer/pages/HelpView";
+import DashboardView from "./DashboardView";
+import ClientsView from "./ClientsView";
+import ClientDetailView from "./ClientDetailView";
+import AppointmentsView from "./AppointmentsView";
+import CalendarView from "./CalendarView";
+import MessagesView from "./MessagesView";
+import NotificationsView from "./NotificationsView";
+import QnAView from "./QnAView";
+import PlansView from "./PlansView";
+import ProgramBuilderView from "./ProgramBuilderView";
+import AssessmentsView from "./AssessmentsView";
+import ReviewsView from "./ReviewsView";
+import EarningsView from "./EarningsView";
+import BillingView from "./BillingView";
+import ProfileView from "./ProfileView";
+import SettingsView from "./SettingsView";
+import HelpView from "./HelpView";
+
+// New client-profile pages — same folder as this file. Each renders its
+// own "🟢 Active Clients" / "🟠 Client Requests" nav buttons in its
+// header, which call the onNavigate prop passed below (navigateTo).
+import ActiveClientProfile from "./ActiveClientProfile";
+import ClientRequestProfile from "./ClientRequestProfile";
 
 export default function TrainerDashboard() {
   const [view, setView] = useState("dashboard");
@@ -66,6 +72,11 @@ export default function TrainerDashboard() {
     dashboard:    <DashboardView onNav={navigateTo} trainer={trainerData} />,
     clients:      <ClientsView onOpenClient={openClient} />,
     clientDetail: <ClientDetailView clientId={clientId} onBack={() => setView("clients")} />,
+    // "existing" and "prospective" match the exact strings each page's own
+    // nav buttons call onNavigate with — so clicking either button on
+    // either page routes straight through navigateTo, no extra wiring.
+    existing:     <ActiveClientProfile onNavigate={navigateTo} />,
+    prospective:  <ClientRequestProfile onNavigate={navigateTo} />,
     appointments: <AppointmentsView />,
     calendar:     <CalendarView />,
     messages:     <MessagesView />,
@@ -82,7 +93,12 @@ export default function TrainerDashboard() {
     help:         <HelpView />,
   };
 
-  const activeLabel = NAV_ITEMS.find(n => n.id === view)?.label || (view === "clientDetail" ? "Client Profile" : view === "planBuilder" ? "Program Builder" : "");
+  const activeLabel = NAV_ITEMS.find(n => n.id === view)?.label
+    || (view === "clientDetail" ? "Client Profile"
+    : view === "planBuilder" ? "Program Builder"
+    : view === "existing" ? "Active Client"
+    : view === "prospective" ? "Client Request"
+    : "");
   const unreadNotifs = NOTIFICATIONS.filter(n => n.unread).length;
 
   if (loading) {

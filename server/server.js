@@ -14,6 +14,7 @@ import trainerAuthRouter from './routes/trainerAuth.js'; // Trainer auth & profi
 import messagesRouter from './routes/messages.js';       // 👈 Import the messaging router
 import bookingsRouter from './routes/bookings.js';     // 👈 Import the new bookings router
 import { initSockets } from './sockets/index.js';      // 👈 Import socket initializer
+import communityRouter from './routes/community.js';
 
 dotenv.config();
 
@@ -43,7 +44,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/posture', postureRouter);
 app.use('/api/trainers', trainerAuthRouter); 
 app.use('/api/messages', messagesRouter); 
-app.use('/api', bookingsRouter); // 👈 Mount bookings routes (e.g., /api/trainers/:trainerId/slots, /api/bookings)
+app.use('/api', bookingsRouter); 
+app.use('/api/community', communityRouter);// 👈 Mount bookings routes (e.g., /api/trainers/:trainerId/slots, /api/bookings)
 
 const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/formcoach';

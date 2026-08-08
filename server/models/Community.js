@@ -28,14 +28,20 @@ const challengeSchema = new mongoose.Schema({
   active: { type: Boolean, default: true }
 });
 
+// NOTE: status values are now plain strings ("Pending", "Accepted",
+// "Completed") with NO emoji baked in. The emoji is purely a UI concern —
+// keeping it out of the enum means frontend string comparisons
+// (b.status === "Pending") actually work, and you can restyle the badge
+// anytime without touching the database.
 const friendChallengeSchema = new mongoose.Schema({
   challengerId: { type: mongoose.Schema.Types.ObjectId, ref: "ClientProfile", required: true },
   challengerName: { type: String, required: true },
   recipientUsername: { type: String, required: true },
   recipientId: { type: mongoose.Schema.Types.ObjectId, ref: "ClientProfile", default: null },
-  exercise: { type: String, required: true },
+  exercise: { type: String, required: true },       // human-readable name, e.g. "Back Squat"
+  exerciseKey: { type: String, required: true },     // routing key, e.g. "backSquat" — was missing entirely before
   target: { type: String, required: true },
-  status: { type: String, enum: ["Pending ⏳", "Accepted 🔥", "Completed 🏆"], default: "Pending ⏳" },
+  status: { type: String, enum: ["Pending", "Accepted", "Completed"], default: "Pending" },
   winnerId: { type: mongoose.Schema.Types.ObjectId, ref: "ClientProfile", default: null },
   createdAt: { type: Date, default: Date.now }
 });

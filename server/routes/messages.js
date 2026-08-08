@@ -1,5 +1,6 @@
 import express from 'express';
 import Message from '../models/Message.js';
+import Trainer from '../models/Trainer.js'; // 🔑 Import Trainer model to fetch real names
 import { requireAuth, isPairMember } from '../middleware/auth.js';
 import { emitToPair } from '../sockets/index.js';
 
@@ -14,16 +15,23 @@ router.get('/conversations/:trainerId', async (req, res) => {
       return res.status(403).json({ success: false, error: "Cannot view another trainer's conversations." });
     }
 
-    // Aggregate unique clients messaged by this trainer to build the sidebar list
+    // 1. Fetch real trainer document from database to get their actual name
+    const trainerDoc = await Trainer.findById(trainerId).select('name');
+    const realTrainerName = trainerDoc ? trainerDoc.name : "Assigned Coach";
+    const initials = realTrainerName.split(" ").map(n => n[0]).join("").toUpperCase();
+
+    // 2. Aggregate unique clients messaged by this trainer to build the sidebar list
     const messages = await Message.find({ trainerId }).sort({ createdAt: -1 });
-    
+
     const conversationMap = {};
     messages.forEach(m => {
       if (!conversationMap[m.clientId]) {
         conversationMap[m.clientId] = {
           id: m.clientId,
-          name: m.clientName,
-          avatar: m.clientAvatar,
+          trainerId: trainerId,
+          name: realTrainerName,           // 🔑 Real database trainer name
+          initials: initials,              // 🔑 Real trainer initials
+          avatar: m.clientAvatar || "CL",
           preview: m.text,
           time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           unread: m.sender === 'client' && m.unread ? 1 : 0
@@ -90,7 +98,16 @@ router.post('/send', async (req, res) => {
     });
 
     await newMessage.save();
-    emitToPair(trainerId, clientId, 'message:new', { from: sender, text, time: 'Just now' });
+
+    // 🔑 FIX: include trainerId/clientId in the payload so recipients can
+    // route the incoming message to the correct conversation thread.
+    emitToPair(trainerId, clientId, 'message:new', {
+      trainerId,
+      clientId,
+      from: sender,
+      text,
+      time: 'Just now'
+    });
 
     return res.status(201).json({
       success: true,

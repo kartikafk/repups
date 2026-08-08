@@ -47,6 +47,9 @@ const formatLocation = (loc) => {
 };
 
 // 📄 TrainerProfileModal placed cleanly right here in TrainerDiscovery.jsx
+// This is the ONLY place Message / Book Session live now — the card itself
+// only opens this modal, so there's a single, consistent entry point into
+// either action instead of three competing buttons on every card.
 function TrainerProfileModal({ trainer, onClose, onMessage, onBook }) {
   if (!trainer) return null;
   const initials = trainer.name ? trainer.name.split(" ").map(n => n[0]).join("").toUpperCase() : "TR";
@@ -60,7 +63,7 @@ function TrainerProfileModal({ trainer, onClose, onMessage, onBook }) {
     }} onClick={onClose}>
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: 28, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}
         onClick={e => e.stopPropagation()}>
-        
+
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
           <div style={{
             width: 68, height: 68, borderRadius: "50%", flexShrink: 0,
@@ -107,6 +110,7 @@ function TrainerProfileModal({ trainer, onClose, onMessage, onBook }) {
           {trainer.bio || "Certified fitness expert specializing in results-driven programming, hypertrophy, and biomechanical optimization."}
         </div>
 
+        {/* Bottom action row — the only place Message / Book Session live */}
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onMessage} style={{ flex: 1, padding: "12px 0", borderRadius: 10, background: "transparent", border: `1px solid ${C.blue}`, color: C.blue, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
             💬 Message Coach
@@ -173,7 +177,10 @@ function SlotPickerModal({ trainer, onClose, onConfirm }) {
   );
 }
 
-function TrainerCard({ trainer, matchPct, onProfileView, onMessage, onBook }) {
+// 🔑 Card now only opens the profile modal. Message / Book live inside
+// TrainerProfileModal's bottom action row (see above) — one consistent
+// entry point instead of three competing buttons per card.
+function TrainerCard({ trainer, matchPct, onProfileView }) {
   const initials = trainer.name ? trainer.name.split(" ").map(n => n[0]).join("").toUpperCase() : "TR";
   const price = trainer.pricing?.personalTraining || 2500;
   const specialties = trainer.specialties || ["Strength", "Muscle Gain"];
@@ -220,15 +227,9 @@ function TrainerCard({ trainer, matchPct, onProfileView, onMessage, onBook }) {
 
           {matchPct !== null && <div style={{ marginBottom: 10 }}><MatchBar pct={matchPct} /></div>}
 
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button onClick={onProfileView} style={{ flex: 1, padding: "9px 0", borderRadius: 8, background: "transparent", border: `1px solid ${C.border}`, color: C.sub, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          <div style={{ marginTop: 4 }}>
+            <button onClick={onProfileView} style={{ width: "100%", padding: "10px 0", borderRadius: 8, background: "transparent", border: `1px solid ${C.lime}`, color: C.lime, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               View profile
-            </button>
-            <button onClick={onMessage} style={{ flex: 1, padding: "9px 0", borderRadius: 8, background: "transparent", border: `1px solid ${C.blue}`, color: C.blue, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-              Message
-            </button>
-            <button onClick={onBook} style={{ flex: 1, padding: "9px 0", borderRadius: 8, background: C.lime, border: "none", color: "#000", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
-              Book call
             </button>
           </div>
         </div>
@@ -244,10 +245,8 @@ export default function TrainerDiscovery() {
   const [search, setSearch] = useState("");
   const [maxDistance, setMaxDistance] = useState(15);
   const [sortBy, setSortBy] = useState("match");
-  
-  const [viewingProfileTrainer, setViewingProfileTrainer] = useState(null);
-  const [bookingTrainer, setBookingTrainer] = useState(null);
-  const [confirmedBooking, setConfirmedBooking] = useState(null);
+
+
 
   useEffect(() => {
     const fetchNearbyTrainers = () => {
@@ -292,6 +291,14 @@ export default function TrainerDiscovery() {
   const handleOpenChat = (trainer) => {
     const trainerId = trainer._id || trainer.id;
     navigate("/trainer-chat", { state: { trainerId, trainer } });
+  };
+
+  // 🔑 View profile now routes to the real TrainerProfileView.jsx page
+  // (which fetches full trainer data itself) instead of opening the
+  // inline TrainerProfileModal.
+  const handleViewProfile = (trainer) => {
+    const trainerId = trainer._id || trainer.id;
+    navigate("/trainer-profile", { state: { trainerId, trainer } });
   };
 
   const results = useMemo(() => {
@@ -363,17 +370,6 @@ export default function TrainerDiscovery() {
           )}
         </div>
 
-        {confirmedBooking && (
-          <div style={{ background: C.lime + "14", border: `1px solid ${C.lime}55`, borderRadius: 12, padding: 14, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <div style={{ fontSize: 12 }}>
-              <strong style={{ color: C.lime }}>Booked ✓</strong> — video call with {confirmedBooking.trainer.name} on {confirmedBooking.slot}.
-            </div>
-            <button onClick={() => handleOpenChat(confirmedBooking.trainer)} style={{ background: "transparent", border: `1px solid ${C.lime}`, color: C.lime, borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
-              Open chat
-            </button>
-          </div>
-        )}
-
         <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>{results.length} trainer{results.length !== 1 ? "s" : ""} nearby</div>
 
         {results.length === 0 ? (
@@ -385,40 +381,16 @@ export default function TrainerDiscovery() {
             key={t._id || t.id}
             trainer={t}
             matchPct={t.matchPct}
-            onProfileView={() => setViewingProfileTrainer(t)}
-            onMessage={() => handleOpenChat(t)}
-            onBook={() => setBookingTrainer(t)}
+            onProfileView={() => handleViewProfile(t)}
           />
         ))}
       </div>
 
-      {viewingProfileTrainer && (
-        <TrainerProfileModal
-          trainer={viewingProfileTrainer}
-          onClose={() => setViewingProfileTrainer(null)}
-          onMessage={() => {
-            const tr = viewingProfileTrainer;
-            setViewingProfileTrainer(null);
-            handleOpenChat(tr);
-          }}
-          onBook={() => {
-            const tr = viewingProfileTrainer;
-            setViewingProfileTrainer(null);
-            setBookingTrainer(tr);
-          }}
-        />
-      )}
-
-      {bookingTrainer && (
-        <SlotPickerModal
-          trainer={bookingTrainer}
-          onClose={() => setBookingTrainer(null)}
-          onConfirm={(trainer, slot) => {
-            setConfirmedBooking({ trainer, slot });
-            setBookingTrainer(null);
-          }}
-        />
-      )}
+      {/* TrainerProfileModal is no longer opened from here — "View profile"
+          now navigates to the standalone /trainer-profile route (TrainerProfileView.jsx),
+          which owns Message + Schedule Call and hands off into TrainerChat's
+          existing booking flow. TrainerProfileModal / SlotPickerModal above are
+          left defined but unused in case you want a quick-peek variant later. */}
     </div>
   );
 }

@@ -30,6 +30,9 @@ export function initSockets(io) {
      * Re-checks membership server-side before letting the socket
      * subscribe — never trust that the client only asks to join its
      * own threads.
+     *
+     * NOTE: client-side code MUST emit "join_thread" (not "join:pair") —
+     * that mismatch was the original bug that broke cross-user delivery.
      */
     socket.on("join_thread", ({ trainerId, clientId }, ack) => {
       const isMember =
@@ -38,6 +41,17 @@ export function initSockets(io) {
       if (!isMember) return ack?.({ ok: false, error: "not a member" });
       socket.join(pairRoom(trainerId, clientId));
       ack?.({ ok: true });
+    });
+
+    /**
+     * leave_thread
+     * Lets a socket (typically the trainer, who can have many open
+     * threads) drop out of a pair room when switching conversations,
+     * so a later message:new for a stale room can't leak into whatever
+     * thread happens to be active on the client at delivery time.
+     */
+    socket.on("leave_thread", ({ trainerId, clientId }) => {
+      socket.leave(pairRoom(trainerId, clientId));
     });
 
     socket.on("typing", ({ trainerId, clientId }) => {

@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { EXERCISES,EXERCISE_LIBRARY } from "../../hooks/exercises";// Import your full exercise library
+import { EXERCISES, EXERCISE_LIBRARY } from "../../hooks/exercises";
+
+// Same one-line pattern used elsewhere in the app — no separate config
+// file, no cross-folder import to get wrong. Set VITE_API_URL in your
+// .env (dev) or hosting dashboard (prod); this line never changes.
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
 const C = {
   bg: "#0a0a0a", surface: "#111111", card: "#161616", border: "#222222",
@@ -14,6 +19,33 @@ const typeMeta = {
   milestone:  { label:"Milestone",       color:C.blue,  icon:"🎯" },
   workout:    { label:"Workout",         color:C.sub,   icon:"💪" },
 };
+
+// Status now stored as plain "Pending" / "Accepted" / "Completed" in the
+// DB — this map is the ONLY place the emoji lives, so the UI can restyle
+// freely without ever touching stored data or breaking string comparisons.
+const statusMeta = {
+  Pending:   { label: "Pending ⏳",   color: C.blue },
+  Accepted:  { label: "Accepted 🔥",  color: C.lime },
+  Completed: { label: "Completed 🏆", color: C.lime },
+};
+
+// ── Single source of truth for "who is logged in right now" ──────────────
+// Previously this fell back to a separate "profileId" localStorage key,
+// which can go stale after a logout/login swap and cause one user's posts
+// or likes to be attributed to a different, previously-logged-in user.
+// Now there is exactly one source (the "user" object) and exactly one
+// shape it's read in (_id, matching the rest of the app's convention).
+function getCurrentUser() {
+  try {
+    const raw = localStorage.getItem("user");
+    if (!raw) return { id: null, name: "Athlete" };
+    const parsed = JSON.parse(raw);
+    const id = parsed._id || parsed.id || null;
+    return { id, name: parsed.name || "Athlete" };
+  } catch (e) {
+    return { id: null, name: "Athlete" };
+  }
+}
 
 const Avatar = ({ initials, size=40, bg=C.lime }) => (
   <div style={{ width:size, height:size, borderRadius:"50%", background:bg, color:"#000",
@@ -42,7 +74,7 @@ function PostCard({ post, currentUserId, onToggleLike }) {
 
       {post.imageUrl && (
         <div style={{ marginBottom: 12, borderRadius: 10, overflow: "hidden", border: `1px solid ${C.border}` }}>
-          <img src={post.imageUrl} alt="Workout Post" style={{ width: "100%", maxHeight: 320, objectFit: "cover", display: "block" }} />
+          <img src={`${API_BASE_URL}${post.imageUrl}`} alt="Workout Post" style={{ width: "100%", maxHeight: 320, objectFit: "cover", display: "block" }} />
         </div>
       )}
 
@@ -66,29 +98,57 @@ function PostCard({ post, currentUserId, onToggleLike }) {
   );
 }
 
-function Composer({ onPost }) {
+function Composer({ onPost, currentUserName }) {
   const [text, setText] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const myInitials = currentUserName ? currentUserName.slice(0, 2).toUpperCase() : "PT";
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowed.includes(file.type)) {
+      setError("Please choose a JPG, PNG, WEBP, or GIF image.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Image must be under 8MB.");
+      return;
+    }
+    setError("");
+    setImageFile(file);
+  };
 
   const handleSubmit = async () => {
     if (!text.trim() && !imageFile) return;
     setLoading(true);
-    await onPost(text, imageFile);
-    setText("");
-    setImageFile(null);
+    setError("");
+    const result = await onPost(text, imageFile);
+    if (result?.error) {
+      setError(result.error);
+    } else {
+      setText("");
+      setImageFile(null);
+    }
     setLoading(false);
   };
 
   return (
     <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:16, marginBottom:16 }}>
       <div style={{ display:"flex", gap:10, marginBottom: 10 }}>
-        <Avatar initials="PT" size={36} />
+        <Avatar initials={myInitials} size={36} />
         <textarea value={text} onChange={e=>setText(e.target.value)} rows={2}
           placeholder="Share a PR, milestone, or attach your workout photo globally..."
           style={{ flex:1, background:C.surface, border:`1px solid ${C.border}`, borderRadius:10,
             padding:12, color:C.text, fontSize:13, resize:"none", outline:"none", boxSizing:"border-box", fontFamily:"inherit" }} />
       </div>
+
+      {error && (
+        <div style={{ fontSize: 11, color: C.red, marginBottom: 10 }}>⚠️ {error}</div>
+      )}
 
       {imageFile && (
         <div style={{ fontSize: 11, color: C.lime, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
@@ -99,7 +159,7 @@ function Composer({ onPost }) {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems: "center", borderTop:`1px solid ${C.border}`, paddingTop: 10 }}>
         <label style={{ cursor: "pointer", fontSize: 13, color: C.blue, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
           📷 Add Photo
-          <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files[0])} style={{ display: "none" }} />
+          <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
         </label>
 
         <button onClick={handleSubmit} disabled={loading}
@@ -117,7 +177,10 @@ function Leaderboard() {
   const rankColor = (r) => r===1?"#FFD700":r===2?"#C0C0C0":r===3?"#CD7F32":C.sub;
 
   useEffect(() => {
-    fetch('/api/community/leaderboard')
+    const token = localStorage.getItem("token");
+    fetch(`${API_BASE_URL}/api/community/leaderboard`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(res => res.json())
       .then(data => { if(data.success) setLeaderboard(data.leaderboard); })
       .catch(err => console.error("Error fetching leaderboard:", err));
@@ -150,7 +213,10 @@ function Challenges() {
   const [challenges, setChallenges] = useState([]);
 
   useEffect(() => {
-    fetch('/api/community/challenges')
+    const token = localStorage.getItem("token");
+    fetch(`${API_BASE_URL}/api/community/challenges`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(res => res.json())
       .then(data => { if(data.success) setChallenges(data.challenges); })
       .catch(err => console.error("Error fetching challenges:", err));
@@ -186,11 +252,15 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
   const [exerciseKey, setExerciseKey] = useState(EXERCISE_LIBRARY[0]?.key || "backSquat");
   const [target, setTarget] = useState("100kg × 5 reps");
   const [successMsg, setSuccessMsg] = useState(false);
+  const [error, setError] = useState("");
   const [battles, setBattles] = useState([]);
 
   useEffect(() => {
     if (!currentUserId) return;
-    fetch(`/api/community/friend-challenges/${currentUserId}`)
+    const token = localStorage.getItem("token");
+    fetch(`${API_BASE_URL}/api/community/friend-challenges/${currentUserId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(res => res.json())
       .then(data => { if (data.success) setBattles(data.challenges); })
       .catch(err => console.error("Error fetching 1v1 battles:", err));
@@ -199,21 +269,28 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
   const handleSend = async (e) => {
     e.preventDefault();
     if (!friendName.trim()) return;
+    if (!currentUserId) {
+      setError("You need to be logged in to send a challenge.");
+      return;
+    }
 
-    // Grab readable exercise name from library
     const selectedExObj = EXERCISE_LIBRARY.find(ex => ex.key === exerciseKey);
     const exerciseName = selectedExObj ? selectedExObj.name : exerciseKey;
 
     try {
-      const res = await fetch('/api/community/friend-challenges', {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/community/friend-challenges`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           challengerId: currentUserId,
           challengerName: currentUserName,
           recipientUsername: friendName,
           exercise: exerciseName,
-          exerciseKey: exerciseKey, // Passes structured key for tracker routing
+          exerciseKey,
           target
         })
       });
@@ -221,32 +298,43 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
       if (data.success) {
         setBattles([data.challenge, ...battles]);
         setFriendName("");
+        setError("");
         setSuccessMsg(true);
         setTimeout(() => setSuccessMsg(false), 3000);
+      } else {
+        setError(data.error || "Failed to send challenge.");
       }
     } catch (err) {
       console.error("Error sending 1v1 challenge:", err);
+      setError("Network error while sending challenge.");
     }
   };
 
-  // NEW: Accept and launch camera engine for the challenge
   const handleAcceptChallenge = async (battleId, targetExerciseKey) => {
+    if (!currentUserId) {
+      setError("You need to be logged in to accept a challenge.");
+      return;
+    }
     try {
-      const res = await fetch(`/api/community/friend-challenges/${battleId}/accept`, {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/community/friend-challenges/${battleId}/accept`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ userId: currentUserId })
       });
       const data = await res.json();
       if (data.success) {
-        // Update local state
         setBattles(prev => prev.map(b => b._id === battleId ? { ...b, status: "Accepted" } : b));
-        
-        // Route to workout tracker camera view passing exercise state
         navigate('/workout', { state: { exercise: targetExerciseKey || 'backSquat' } });
+      } else {
+        setError(data.error || "Failed to accept challenge.");
       }
     } catch (err) {
       console.error("Error accepting challenge:", err);
+      setError("Network error while accepting challenge.");
     }
   };
 
@@ -265,6 +353,11 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
             🚀 1v1 Challenge transmitted globally!
           </div>
         )}
+        {error && (
+          <div style={{ background:C.red+"15", border:`1px solid ${C.red}`, color:C.red, padding:"10px 14px", borderRadius:8, fontSize:12, fontWeight:700, marginBottom:14, textAlign:"center" }}>
+            ⚠️ {error}
+          </div>
+        )}
 
         <form onSubmit={handleSend} style={{ display:"flex", flexDirection:"column", gap:12 }}>
           <div>
@@ -279,7 +372,7 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
               <select value={exerciseKey} onChange={e => setExerciseKey(e.target.value)}
                 style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px", color:C.text, fontSize:13, outline:"none" }}>
                 {EXERCISE_LIBRARY.map(ex => (
-                  <option key={ex.key} value={ex.trackingKey || ex.key}>{ex.name}</option>
+                  <option key={ex.key} value={ex.key}>{ex.name}</option>
                 ))}
               </select>
             </div>
@@ -303,6 +396,7 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
         ) : (
           battles.map(b => {
             const isPending = b.status === "Pending" || !b.status;
+            const meta = statusMeta[b.status] || statusMeta.Pending;
             return (
               <div key={b._id} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:12, padding:14, marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <div>
@@ -310,8 +404,8 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
                   <div style={{ fontSize:12, color:C.sub }}>Target: <span style={{ color:C.lime }}>{b.target}</span></div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize:11, fontWeight:700, color: isPending ? C.blue : C.lime, background: (isPending ? C.blue : C.lime)+"15", padding:"4px 10px", borderRadius:99 }}>
-                    {b.status || "Pending"}
+                  <span style={{ fontSize:11, fontWeight:700, color: meta.color, background: meta.color+"15", padding:"4px 10px", borderRadius:99 }}>
+                    {meta.label}
                   </span>
                   {isPending && (
                     <button 
@@ -336,48 +430,65 @@ export default function CommunityFeed() {
   const [posts, setPosts] = useState([]);
   const [tab, setTab] = useState("feed");
 
-  let parsedUser = { name: "Athlete", id: null };
-  try {
-    const raw = localStorage.getItem("user");
-    if (raw) parsedUser = JSON.parse(raw);
-  } catch(e){}
-  const currentUserId = parsedUser.id || localStorage.getItem("profileId");
-  const currentUserName = parsedUser.name;
+  const { id: currentUserId, name: currentUserName } = getCurrentUser();
 
   useEffect(() => {
-    fetch('/api/community/feed')
+    const token = localStorage.getItem("token");
+    fetch(`${API_BASE_URL}/api/community/feed`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(res => res.json())
       .then(data => { if(data.success) setPosts(data.posts); })
       .catch(err => console.error("Error fetching feed:", err));
   }, []);
 
   const handlePost = async (text, imageFile) => {
+    if (!currentUserId) {
+      // Previously this silently posted under a shared hardcoded fake ID
+      // instead of failing. Now it fails loudly and tells the user why,
+      // instead of quietly corrupting the feed's author attribution.
+      return { error: "You need to be logged in to post." };
+    }
+
     const formData = new FormData();
-    formData.append("authorId", currentUserId || "640000000000000000000000");
+    formData.append("authorId", currentUserId);
     formData.append("name", currentUserName);
     formData.append("text", text);
     formData.append("type", "workout");
     if (imageFile) formData.append("image", imageFile);
 
     try {
-      const res = await fetch('/api/community/feed', {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/community/feed`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        // No Content-Type here on purpose — the browser sets the correct
+        // multipart boundary automatically for FormData. Setting it
+        // manually breaks file uploads.
         body: formData
       });
       const data = await res.json();
       if (data.success) {
         setPosts([data.post, ...posts]);
+        return {};
       }
+      return { error: data.error || "Failed to create post." };
     } catch(err) {
       console.error("Error creating post:", err);
+      return { error: "Network error while posting." };
     }
   };
 
   const toggleLike = async (postId) => {
+    if (!currentUserId) return;
     try {
-      const res = await fetch(`/api/community/feed/${postId}/like`, {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/api/community/feed/${postId}/like`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ userId: currentUserId })
       });
       const data = await res.json();
@@ -423,9 +534,15 @@ export default function CommunityFeed() {
           </div>
         </div>
 
+        {!currentUserId && (
+          <div style={{ background:C.red+"12", border:`1px solid ${C.red}40`, color:C.red, padding:"10px 14px", borderRadius:10, fontSize:12, fontWeight:600, marginBottom:16 }}>
+            You're not logged in — you can browse, but posting, liking, and challenges are disabled until you log in.
+          </div>
+        )}
+
         {tab === "feed" && (
           <>
-            <Composer onPost={handlePost} />
+            <Composer onPost={handlePost} currentUserName={currentUserName} />
             {posts.map(p => <PostCard key={p._id} post={p} currentUserId={currentUserId} onToggleLike={toggleLike} />)}
           </>
         )}

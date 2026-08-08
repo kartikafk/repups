@@ -128,6 +128,7 @@ export default function RepUpsSignup() {
     localStorage.removeItem("profileId");
     localStorage.removeItem("userId");
     localStorage.removeItem("userRole");
+    localStorage.removeItem("token");
 
     const endpoint = isTrainer 
       ? (mode === "signin" ? "http://localhost:5001/api/trainers/signin" : "http://localhost:5001/api/trainers/register")
@@ -174,6 +175,12 @@ export default function RepUpsSignup() {
           localStorage.setItem("profileId", uniqueId);
           localStorage.setItem("userId", uniqueId);
           localStorage.setItem("userRole", isTrainer ? "trainer" : "client");
+
+          if (data.token) {
+            localStorage.setItem("token", data.token);
+          } else {
+            console.warn("⚠️ No token in auth response — check backend payload shape.");
+          }
         } else {
           throw new Error("Authentication response did not contain a valid user ID.");
         }

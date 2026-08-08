@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+import { io } from "socket.io-client";
 import { C, useBreakpoint } from "../theme";
 import { Avatar } from "../components";
 
@@ -11,7 +12,13 @@ export default function MessagesView() {
   const [input, setInput] = useState("");
   const [mobilePane, setMobilePane] = useState("list"); // "list" | "chat"
 
-  // Get active trainer ID from localStorage
+  const socketRef = useRef(null);
+  const bottomRef = useRef(null);
+  const joinedRoomRef = useRef(null); // tracks the currently-joined pair room's clientId
+
+  const token = localStorage.getItem("token");
+
+  // Get active trainer ID from localStorage or user object
   const getTrainerId = () => {
     try {
       const stored = localStorage.getItem("user");
@@ -25,29 +32,65 @@ export default function MessagesView() {
 
   const trainerId = getTrainerId();
 
+  // 1. Initialize Socket.io connection ONCE and listen for incoming messages.
+  //    Routing is done by the pair id carried in the payload (msg.clientId),
+  //    NOT by whatever `activeChat` happens to be in a stale closure — that
+  //    was misrouting/losing messages whenever the trainer switched threads.
+  useEffect(() => {
+    if (!trainerId) return;
+
+    socketRef.current = io("http://localhost:5001", {
+      auth: { token }
+    });
+
+    socketRef.current.on("message:new", (msg) => {
+      const key = msg.clientId;
+      if (!key) return; // payload must include clientId (see server fix)
+      setChatMessages(prev => ({
+        ...prev,
+        [key]: [...(prev[key] || []), msg]
+      }));
+    });
+
+    return () => {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
+  }, [trainerId, token]);
+
   // 📥 Fetch Conversations List on mount
   useEffect(() => {
     async function fetchConversations() {
       try {
-        const res = await fetch(`http://localhost:5001/api/messages/conversations/${trainerId}`);
+        const res = await fetch(`http://localhost:5001/api/messages/conversations/${trainerId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const data = await res.json();
         if (data.success && data.conversations.length > 0) {
           setConversations(data.conversations);
-          setActiveChat(data.conversations[0].id); // Select first chat by default
+          if (!activeChat) {
+            setActiveChat(data.conversations[0].id); // Select first chat by default
+          }
         }
       } catch (err) {
         console.error("Failed to load conversations:", err);
       }
     }
     fetchConversations();
-  }, [trainerId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trainerId, token]);
 
-  // 📥 Fetch Message Thread whenever activeChat changes
+  // 📥 Fetch Message Thread & join socket room whenever activeChat changes.
+  //    Leaves the previously-joined pair room first so the trainer's socket
+  //    isn't left subscribed to every thread they've ever opened.
   useEffect(() => {
-    if (!activeChat) return;
+    if (!activeChat || !trainerId) return;
+
     async function fetchThread() {
       try {
-        const res = await fetch(`http://localhost:5001/api/messages/thread?trainerId=${trainerId}&clientId=${activeChat}`);
+        const res = await fetch(`http://localhost:5001/api/messages/thread?trainerId=${trainerId}&clientId=${activeChat}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const data = await res.json();
         if (data.success) {
           setChatMessages(prev => ({
@@ -55,32 +98,54 @@ export default function MessagesView() {
             [activeChat]: data.messages
           }));
         }
+
+        // Leave the previous pair room (if different) before joining the new one
+        if (joinedRoomRef.current && joinedRoomRef.current !== activeChat) {
+          socketRef.current?.emit("leave_thread", { trainerId, clientId: joinedRoomRef.current });
+        }
+
+        // 🔑 FIX: join_thread (not join:pair) — must match the event name
+        // the server actually listens for in sockets/index.js.
+        socketRef.current?.emit("join_thread", { trainerId, clientId: activeChat }, (res2) => {
+          if (!res2?.ok) {
+            console.warn("⚠️ Failed to join chat room:", res2?.error);
+            return;
+          }
+          joinedRoomRef.current = activeChat;
+        });
       } catch (err) {
         console.error("Failed to load message thread:", err);
       }
     }
     fetchThread();
-  }, [activeChat, trainerId]);
+  }, [activeChat, trainerId, token]);
+
+  // Scroll to bottom when messages update
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, activeChat]);
 
   const active = conversations.find(m => m.id === activeChat);
 
-  // 📤 Send Message Handler
+  // 📤 Send Message Handler (relies on token authorization, never sends raw sender body)
   async function send() {
     if (!input.trim() || !activeChat) return;
 
-    const textPayload = input;
+    const textPayload = input.trim();
     setInput("");
 
     try {
       const res = await fetch(`http://localhost:5001/api/messages/send`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify({
           trainerId,
           clientId: activeChat,
           clientName: active?.name || "Client",
           clientAvatar: active?.avatar || "CL",
-          sender: "trainer",
           text: textPayload
         })
       });
@@ -150,18 +215,22 @@ export default function MessagesView() {
           {!activeChat ? (
             <div style={{ margin: "auto", color: C.sub, fontSize: 13 }}>Choose a conversation from the sidebar</div>
           ) : (
-            (chatMessages[activeChat] || []).map((msg, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: msg.from === "trainer" ? "flex-end" : "flex-start", gap: 10 }}>
-                {msg.from === "client" && <Avatar initials={active?.avatar || "?"} size={30} color={C.sub} />}
-                <div style={{ maxWidth: "68%" }}>
-                  <div style={{ padding: "10px 14px", borderRadius: msg.from === "trainer" ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: msg.from === "trainer" ? C.limeGlow : C.card2, border: `1px solid ${msg.from === "trainer" ? `${C.lime}30` : C.border2}`, fontSize: 13, color: C.text, lineHeight: 1.5 }}>
-                    {msg.text}
+            (chatMessages[activeChat] || []).map((msg, i) => {
+              const isTrainer = msg.from === "trainer";
+              return (
+                <div key={i} style={{ display: "flex", justifyContent: isTrainer ? "flex-end" : "flex-start", gap: 10 }}>
+                  {!isTrainer && <Avatar initials={active?.avatar || "?"} size={30} color={C.sub} />}
+                  <div style={{ maxWidth: "68%" }}>
+                    <div style={{ padding: "10px 14px", borderRadius: isTrainer ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isTrainer ? C.limeGlow : C.card2, border: `1px solid ${isTrainer ? `${C.lime}30` : C.border2}`, fontSize: 13, color: C.text, lineHeight: 1.5 }}>
+                      {msg.text}
+                    </div>
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textAlign: isTrainer ? "right" : "left" }}>{msg.time}</div>
                   </div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 4, textAlign: msg.from === "trainer" ? "right" : "left" }}>{msg.time}</div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
+          <div ref={bottomRef} />
         </div>
 
         {/* Input */}

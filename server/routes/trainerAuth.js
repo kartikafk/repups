@@ -57,45 +57,34 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
   return Number((R * c).toFixed(1));
 }
 
-// 📍 GET: Fetch single trainer profile by ID with fail-safe fallback
+// 📍 GET: Fetch single trainer profile by ID (Strict check, no silent fallback)
 router.get('/:id', async (req, res) => {
   try {
     const trainerId = req.params.id;
-    let trainer = null;
 
-    if (trainerId && trainerId.length === 24) {
-      trainer = await Trainer.findById(trainerId).select('-password');
+    if (!trainerId || trainerId.length !== 24) {
+      return res.status(400).json({ success: false, error: 'Invalid trainer ID format.' });
     }
 
-    if (!trainer) {
-      trainer = await Trainer.findOne().sort({ createdAt: -1 }).select('-password');
-    }
+    const trainer = await Trainer.findById(trainerId).select('-password');
 
     if (!trainer) {
-      return res.status(404).json({ success: false, error: 'Trainer profile not found in database.' });
+      return res.status(404).json({ success: false, error: 'Trainer not found.' });
     }
 
     return res.status(200).json({ success: true, trainer });
   } catch (err) {
     console.error('❌ Fetch Trainer Profile Error:', err);
-    try {
-      const fallbackTrainer = await Trainer.findOne().select('-password');
-      if (fallbackTrainer) {
-        return res.status(200).json({ success: true, trainer: fallbackTrainer });
-      }
-    } catch (fallbackErr) {}
-
     return res.status(500).json({ success: false, error: 'Server error while fetching trainer profile.' });
   }
 });
 
-// 📍 PUT: Update trainer profile details securely (ignoring empty required fields to avoid validation errors)
+// 📍 PUT: Update trainer profile details securely
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = { ...req.body };
 
-    // Prevent required fields from being accidentally cleared out with empty strings
     if (updates.name !== undefined && typeof updates.name === 'string' && !updates.name.trim()) {
       delete updates.name;
     }

@@ -12,6 +12,7 @@ import HomeDashboard from "./components/client/HomeDashboard";
 import WorkoutSessionPlayer from "./components/client/WorkoutSessionPlayer"; 
 import RepUpsSignup from "./components/signup"; 
 import TrainerChat from "./components/client/Trainerchat";
+import TrainerProfileView from "./components/client/TrainerProfileView";
 
 // 🏋️ Trainer Portal Component
 import TrainerDashboard from "./trainer/pages/Trainerdashboard";
@@ -134,6 +135,28 @@ function TrainerChatWrapper() {
   return <TrainerChat initialTrainerId={passedTrainerId} />;
 }
 
+// 🔑 Wrapper to pass router location state (trainer id) into TrainerProfileView,
+// and wire its callbacks to real navigation instead of local modal state.
+function TrainerProfileRouteWrapper() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const passedTrainerId = location.state?.trainerId || null;
+
+  if (!passedTrainerId) {
+    // No trainer id in state (e.g. direct URL visit/refresh) — nothing to show.
+    return <Navigate to="/trainers" replace />;
+  }
+
+  return (
+    <TrainerProfileView
+      trainerId={passedTrainerId}
+      onBack={() => navigate(-1)}
+      onMessage={() => navigate('/trainer-chat', { state: { trainerId: passedTrainerId } })}
+      onScheduleCall={() => navigate('/trainer-chat', { state: { trainerId: passedTrainerId } })}
+    />
+  );
+}
+
 export default function App() {
   return (
     <Router>
@@ -150,6 +173,7 @@ export default function App() {
         <Route path="/community" element={<CommunityFeed />} />
         <Route path="/trainers" element={<TrainerDiscovery />} />
         <Route path="/trainer-chat" element={<TrainerChatWrapper />} />
+        <Route path="/trainer-profile" element={<TrainerProfileRouteWrapper />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
