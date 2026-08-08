@@ -1,8 +1,8 @@
 import { C, useBreakpoint } from "../theme"; // Correct if theme.js is in src/trainer/theme.js
 import { APPOINTMENTS, MESSAGES, CLIENTS, ASSESSMENTS } from "../mockData"; // Correct if mockData.js is in src/trainer/mockData.js
-import { Card, SectionLabel, Ring, Avatar, ProgBar, TrainerStreakBadges } from "../components"; // Correct if components.jsx is in src/trainer/components.jsx
+import { Card, SectionLabel, Ring, Avatar, ProgBar, ClientActionButtons } from "../components"; // swapped TrainerStreakBadges for ClientActionButtons
 
-// ─── VIEW: DASHBOARD ─────────────────────────────────────────────────────────
+// ─── VIEW: DASHBOARD ────────────────────────────────────────────────────────[...]
 export default function DashboardView({ onNav, trainer }) {
   const { isMobile, isTablet } = useBreakpoint();
 
@@ -65,8 +65,19 @@ export default function DashboardView({ onNav, trainer }) {
         </div>
       </Card>
 
-      {/* Streak & Badges */}
-      <TrainerStreakBadges />
+      {/* Client actions (new container requested) */}
+      <Card style={{ padding: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: C.sub, textTransform: "uppercase", letterSpacing: 2 }}>Quick Actions</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Clients & Bookings</div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => onNav && onNav("existing")} className="trainer-btn-primary" style={{ padding: "10px 16px" }}>My Clients</button>
+            <button onClick={() => onNav && onNav("appointments")} className="trainer-btn-ghost" style={{ padding: "10px 16px" }}>Appointments</button>
+          </div>
+        </div>
+      </Card>
 
       {/* Main grid */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile || isTablet ? "1fr" : "1fr 1fr", gap: 18 }}>
@@ -77,31 +88,35 @@ export default function DashboardView({ onNav, trainer }) {
             <button onClick={() => onNav("appointments")} style={{ fontSize: 11, color: C.lime, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>View all →</button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {upcoming.map(a => (
-              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: C.card2, borderRadius: 10, border: `1px solid ${C.border2}` }}>
-                <Avatar initials={a.avatar} size={36} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{a.client}</div>
-                  <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>{a.type} · {a.duration}</div>
+            {upcoming.map(a => {
+              const clientObj = CLIENTS.find(c => c.name === a.client);
+              const clientId = clientObj ? clientObj.id : a.client;
+              return (
+                <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", background: C.card2, borderRadius: 10, border: `1px solid ${C.border2}`, cursor: "pointer" }} onClick={() => onNav && onNav("prospective", clientId)}>
+                  <Avatar initials={a.avatar} size={36} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{a.client}</div>
+                    <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>{a.type} · {a.duration}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 12, color: C.lime, fontWeight: 600 }}>{a.date}</div>
+                    <div style={{ fontSize: 11, color: C.sub }}>{a.time}</div>
+                  </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, color: C.lime, fontWeight: 600 }}>{a.date}</div>
-                  <div style={{ fontSize: 11, color: C.sub }}>{a.time}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
 
-        {/* Recent messages */}
+        {/* Recent messages (kept visually but now clicking just opens client requests) */}
         <Card style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <SectionLabel>Recent Messages</SectionLabel>
-            <button onClick={() => onNav("messages")} style={{ fontSize: 11, color: C.lime, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>View all →</button>
+            <button onClick={() => onNav("existing")} style={{ fontSize: 11, color: C.lime, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>View all →</button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {MESSAGES.slice(0, 3).map(m => (
-              <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.card2, borderRadius: 10, border: `1px solid ${m.unread ? `${C.lime}30` : C.border2}`, cursor: "pointer" }} onClick={() => onNav("messages")}>
+              <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.card2, borderRadius: 10, border: `1px solid ${m.unread ? `${C.lime}30` : C.border2}`, cursor: "pointer" }} onClick={() => onNav && onNav("existing")}>
                 <div style={{ position: "relative" }}>
                   <Avatar initials={m.avatar} size={34} />
                   {m.unread > 0 && <div style={{ position: "absolute", top: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: C.red, color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${C.card2}` }}>{m.unread}</div>}
@@ -120,7 +135,7 @@ export default function DashboardView({ onNav, trainer }) {
         <Card style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <SectionLabel>Client Progress</SectionLabel>
-            <button onClick={() => onNav("clients")} style={{ fontSize: 11, color: C.lime, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>All clients →</button>
+            <button onClick={() => onNav("existing")} style={{ fontSize: 11, color: C.lime, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>All clients →</button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {CLIENTS.slice(0, 4).map(c => (
