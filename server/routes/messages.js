@@ -3,6 +3,7 @@ import Message from '../models/Message.js';
 import Trainer from '../models/Trainer.js'; // 🔑 Import Trainer model to fetch real names
 import { requireAuth, isPairMember } from '../middleware/auth.js';
 import { emitToPair } from '../sockets/index.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -42,7 +43,7 @@ router.get('/conversations/:trainerId', async (req, res) => {
     const conversations = Object.values(conversationMap);
     return res.status(200).json({ success: true, conversations });
   } catch (err) {
-    console.error('❌ Fetch Conversations Error:', err);
+    logger.error({ msg: 'Fetch Conversations Error', err: err.message });
     return res.status(500).json({ success: false, error: 'Server error while fetching conversations.' });
   }
 });
@@ -69,7 +70,7 @@ router.get('/thread', async (req, res) => {
 
     return res.status(200).json({ success: true, messages: formattedThread });
   } catch (err) {
-    console.error('❌ Fetch Thread Error:', err);
+    logger.error({ msg: 'Fetch Thread Error', err: err.message });
     return res.status(500).json({ success: false, error: 'Server error while fetching message thread.' });
   }
 });
@@ -118,7 +119,7 @@ router.post('/send', async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('❌ Send Message Error:', err);
+    logger.error({ msg: 'Send Message Error', err: err.message });
     return res.status(500).json({ success: false, error: 'Server error while sending message.' });
   }
 });

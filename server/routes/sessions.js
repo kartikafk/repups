@@ -1,7 +1,10 @@
 import express from 'express';
 import Session from '../models/Session.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
+// Require auth for all session routes
+router.use(requireAuth);
 
 const inferMuscleGroup = (exerciseName = "") => {
   const name = exerciseName.toLowerCase();
@@ -13,44 +16,23 @@ const inferMuscleGroup = (exerciseName = "") => {
   return "Core";
 };
 
-const isInvalidUserId = (userId) =>
-  !userId || userId === 'undefined' || userId === 'null' || userId === 'guest' || userId === 'guest_user';
-
 // POST /api/sessions - Save a completed set report
 router.post('/', async (req, res) => {
   try {
     const { 
-      exercise, 
-      muscleGroup,
-      userId, 
-      setIndex, 
-      date, 
-      weight, 
-      youtubeId, 
-      videoUrl, 
-      avgScore, 
-      repCount, 
-      avgRom, 
-      consistency, 
-      reps, 
-      avgTempo, 
-      topIssues 
+      exercise, muscleGroup, setIndex, date, weight, youtubeId, videoUrl,
+      avgScore, repCount, avgRom, consistency, reps, avgTempo, topIssues
     } = req.body;
-
-    // 🔑 Graceful fallback for development/mobile testing if a strict mock or temporary id is passed
-    const resolvedUserId = isInvalidUserId(userId) ? '640000000000000000000000' : userId;
+    // Never trust client-provided userId. Use authenticated user.
+    const resolvedUserId = req.user && req.user.id;
+    if (!resolvedUserId) return res.status(401).json({ error: 'Unauthorized' });
 
     const workoutDate = date || new Date().toISOString().split('T')[0];
     const targetSetIndex = setIndex !== undefined ? setIndex : 0;
     const resolvedMuscleGroup = muscleGroup || inferMuscleGroup(exercise);
 
     const session = await Session.findOneAndUpdate(
-      { 
-        userId: resolvedUserId, 
-        exercise, 
-        setIndex: targetSetIndex, 
-        date: workoutDate 
-      },
+      { userId: resolvedUserId, exercise, setIndex: targetSetIndex, date: workoutDate },
       {
         exercise,
         muscleGroup: resolvedMuscleGroup,
@@ -70,31 +52,38 @@ router.post('/', async (req, res) => {
       },
       { new: true, upsert: true }
     );
-
-    res.status(201).json(session);
+    // Return only fields the client needs
+    res.status(201).json({
+      id: session._id,
+      exercise: session.exercise,
+      date: session.date,
+      setIndex: session.setIndex,
+      repCount: session.repCount,
+      avgScore: session.avgScore
+    });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: 'Invalid session data' });
   }
 });
 
 // GET /api/sessions - Return records belonging to the requested userId
 router.get('/', async (req, res) => {
   try {
-    const { userId, exercise, muscleGroup, date, limit } = req.query;
-
-    const resolvedUserId = isInvalidUserId(userId) ? '640000000000000000000000' : userId;
-
+    const { exercise, muscleGroup, date, limit } = req.query;
+    // Only return sessions for the authenticated user (or admin)
+    const resolvedUserId = req.user && req.user.id;
+    if (!resolvedUserId) return res.status(401).json({ error: 'Unauthorized' });
     let query = { userId: resolvedUserId };
     if (exercise) query.exercise = exercise;
     if (muscleGroup) query.muscleGroup = muscleGroup;
     if (date) query.date = date;
 
     const maxLimit = Math.min(parseInt(limit) || 200, 500);
-    const sessions = await Session.find(query).sort({ date: 1, createdAt: 1 }).limit(maxLimit);
+    const sessions = await Session.find(query).sort({ date: 1, createdAt: 1 }).limit(maxLimit).select('exercise date setIndex repCount avgScore');
     
     res.json(sessions);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

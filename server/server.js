@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import helmet from 'helmet';
 
 // Routers
 import sessionsRouter from './routes/sessions.js';
@@ -15,6 +16,7 @@ import messagesRouter from './routes/messages.js';       // 👈 Import the mess
 import bookingsRouter from './routes/bookings.js';     // 👈 Import the new bookings router
 import { initSockets } from './sockets/index.js';      // 👈 Import socket initializer
 import communityRouter from './routes/community.js';
+import logger from './utils/logger.js';
 
 dotenv.config();
 
@@ -23,11 +25,16 @@ const server = http.createServer(app);
 const io = new SocketIOServer(server, { cors: { origin: '*' } });
 initSockets(io);
 
+// Security middleware
+app.use(helmet());
+
 // Middleware
-app.use(cors({ 
-  origin: '*', // Allows connections from local network devices (like mobile phones testing on your IP)
-  credentials: true 
-}));
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || (process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5173');
+if (process.env.NODE_ENV === 'production' && !CLIENT_ORIGIN) {
+  logger.error('FATAL: CLIENT_ORIGIN must be set in production');
+  process.exit(1);
+}
+app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 
 // Increased payload limits to handle camera snapshot frames & video data cleanly
 app.use(express.json({ limit: '50mb' }));
@@ -48,15 +55,20 @@ app.use('/api', bookingsRouter);
 app.use('/api/community', communityRouter);// 👈 Mount bookings routes (e.g., /api/trainers/:trainerId/slots, /api/bookings)
 
 const PORT = process.env.PORT || 5001;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/formcoach';
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (process.env.NODE_ENV === 'production' && !MONGODB_URI) {
+  logger.error('FATAL: MONGODB_URI must be set in production');
+  process.exit(1);
+}
 
 mongoose
-  .connect(MONGODB_URI)
+  .connect(MONGODB_URI || 'mongodb://127.0.0.1:27017/formcoach')
   .then(() => {
-    console.log('✅ MongoDB connected successfully (Client / Primary DB)');
-    server.listen(PORT, () => console.log(`🚀 RepUps API running on port ${PORT}`));
+    logger.info('✅ MongoDB connected successfully (Client / Primary DB)');
+    server.listen(PORT, () => logger.info(`🚀 RepUps API running on port ${PORT}`));
   })
   .catch((err) => {
-    console.error('❌ MongoDB connection error:', err.message);
+    logger.error('❌ MongoDB connection error:', err.message);
     process.exit(1);
   });
