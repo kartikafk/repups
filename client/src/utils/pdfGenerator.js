@@ -50,7 +50,8 @@ export const generatePosturePDF = async (elementRef, userName) => {
     pdf.save(`RepUps_Posture_Report_${userName || 'Athlete'}.pdf`);
     return true;
   } catch (error) {
-    console.error("PDF Generation Failed:", error);
+    // avoid logging full error stack in client console in production
+    console.error('PDF Generation Failed');
     return false;
   }
 };

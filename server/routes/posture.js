@@ -1,6 +1,7 @@
 import express from 'express';
 import PostureRecord from '../models/PostureRecord.js';
 import mongoose from 'mongoose';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ router.post('/save', async (req, res) => {
     const { profileId, overallScore, generatedAt, planes, findings, recommendations, heightInches, images } = req.body;
 
     if (!profileId) {
-      return res.status(400).json({ success: false, error: "Missing profileId" });
+      return res.status(400).json({ success: false, error: 'Missing profileId' });
     }
 
     const newRecord = new PostureRecord({
@@ -25,10 +26,10 @@ router.post('/save', async (req, res) => {
     });
 
     await newRecord.save();
-    return res.status(201).json({ success: true, message: "Posture record saved successfully." });
+    return res.status(201).json({ success: true, message: 'Posture record saved successfully.' });
   } catch (err) {
-    console.error("❌ Posture Save Error:", err);
-    return res.status(500).json({ success: false, error: "Internal server error while saving posture report." });
+    logger.error('Posture Save Error: ' + (err && err.message));
+    return res.status(500).json({ success: false, error: 'Internal server error while saving posture report.' });
   }
 });
 
@@ -38,7 +39,7 @@ router.get('/:profileId/latest', async (req, res) => {
     const { profileId } = req.params;
 
     let query = {};
-    if (profileId && profileId !== "undefined" && profileId !== "null") {
+    if (profileId && profileId !== 'undefined' && profileId !== 'null') {
       if (mongoose.Types.ObjectId.isValid(profileId)) {
         query = { $or: [{ profileId }, { _id: profileId }] };
       } else {
@@ -59,13 +60,13 @@ router.get('/:profileId/latest', async (req, res) => {
     }
 
     if (!record) {
-      return res.status(404).json({ success: false, error: "No posture assessment found." });
+      return res.status(404).json({ success: false, error: 'No posture assessment found.' });
     }
 
     return res.status(200).json({ success: true, record });
   } catch (err) {
-    console.error("❌ Posture Fetch Error:", err);
-    return res.status(500).json({ success: false, error: "Server error while fetching posture record." });
+    logger.error('Posture Fetch Error: ' + (err && err.message));
+    return res.status(500).json({ success: false, error: 'Server error while fetching posture record.' });
   }
 });
 
