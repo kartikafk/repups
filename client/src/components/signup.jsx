@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiUrl } from "../config.js";
 
 const C = {
   bg: "#0a0a0f",
@@ -130,9 +131,9 @@ export default function RepUpsSignup() {
     localStorage.removeItem("userRole");
     localStorage.removeItem("token");
 
-    const endpoint = isTrainer 
-      ? (mode === "signin" ? "http://localhost:5001/api/trainers/signin" : "http://localhost:5001/api/trainers/register")
-      : (mode === "signin" ? "http://localhost:5001/api/auth/signin" : "http://localhost:5001/api/auth/register");
+    const endpoint = isTrainer
+      ? apiUrl(mode === "signin" ? "trainers/signin" : "trainers/register")
+      : apiUrl(mode === "signin" ? "auth/signin" : "auth/register");
 
     const payload = mode === "signin"
       ? { email: form.email, password: form.password }

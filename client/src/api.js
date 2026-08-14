@@ -1,3 +1,8 @@
+export function authHeaders() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // Automatically resolve the correct API base URL for laptop vs mobile testing
 const getDynamicApiUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;

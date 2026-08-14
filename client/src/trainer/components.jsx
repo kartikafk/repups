@@ -18,9 +18,9 @@ export function Badge({ children, color = C.lime }) {
   );
 }
 
-export function Card({ children, style = {} }) {
+export function Card({ children, style = {}, ...props }) {
   return (
-    <div className="trainer-card" style={style}>
+    <div className="trainer-card" style={style} {...props}>
       {children}
     </div>
   );

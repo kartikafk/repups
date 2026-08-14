@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { EXERCISES, EXERCISE_LIBRARY } from "../../hooks/exercises";
+import { API_ORIGIN, apiUrl } from "../../config";
 
 // Same one-line pattern used elsewhere in the app — no separate config
 // file, no cross-folder import to get wrong. Set VITE_API_URL in your
 // .env (dev) or hosting dashboard (prod); this line never changes.
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+const API_BASE_URL = API_ORIGIN;
+const communityUrl = (path = "") => apiUrl(`community/${path}`);
 
 const C = {
   bg: "#0a0a0a", surface: "#111111", card: "#161616", border: "#222222",
@@ -178,7 +180,7 @@ function Leaderboard() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    fetch(`${API_BASE_URL}/api/community/leaderboard`, {
+    fetch(communityUrl("leaderboard"), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(res => res.json())
@@ -214,7 +216,7 @@ function Challenges() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    fetch(`${API_BASE_URL}/api/community/challenges`, {
+    fetch(communityUrl("challenges"), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(res => res.json())
@@ -258,7 +260,7 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
   useEffect(() => {
     if (!currentUserId) return;
     const token = localStorage.getItem("token");
-    fetch(`${API_BASE_URL}/api/community/friend-challenges/${currentUserId}`, {
+    fetch(communityUrl(`friend-challenges/${currentUserId}`), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(res => res.json())
@@ -279,7 +281,7 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE_URL}/api/community/friend-challenges`, {
+      const res = await fetch(communityUrl("friend-challenges"), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -317,7 +319,7 @@ function ChallengeFriendTab({ currentUserId, currentUserName }) {
     }
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE_URL}/api/community/friend-challenges/${battleId}/accept`, {
+      const res = await fetch(communityUrl(`friend-challenges/${battleId}/accept`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -434,7 +436,7 @@ export default function CommunityFeed() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    fetch(`${API_BASE_URL}/api/community/feed`, {
+    fetch(communityUrl("feed"), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(res => res.json())
@@ -459,7 +461,7 @@ export default function CommunityFeed() {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE_URL}/api/community/feed`, {
+      const res = await fetch(communityUrl("feed"), {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         // No Content-Type here on purpose — the browser sets the correct
@@ -483,7 +485,7 @@ export default function CommunityFeed() {
     if (!currentUserId) return;
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE_URL}/api/community/feed/${postId}/like`, {
+      const res = await fetch(communityUrl(`feed/${postId}/like`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

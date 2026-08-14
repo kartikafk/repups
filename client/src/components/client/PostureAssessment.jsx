@@ -140,7 +140,11 @@ export default function PostureAssessment() {
   const [pdfStatus, setPdfStatus] = useState("idle"); // idle | generating | done | error
   const [heightInches, setHeightInches] = useState(""); // optional, for real-world unit calibration
 
-  const profileId = localStorage.getItem("profileId");
+  let profileId = localStorage.getItem("profileId");
+  try {
+    const savedUser = JSON.parse(localStorage.getItem("user") || "null");
+    profileId = savedUser?._id || savedUser?.id || profileId;
+  } catch {}
 
   // 1. Initialize Camera Stream
   // Resolution is requested as an "ideal" range rather than a hard 640x480
@@ -345,7 +349,7 @@ export default function PostureAssessment() {
 
       const res = await fetch("/api/posture/save", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(localStorage.getItem("token") ? { Authorization: `Bearer ${localStorage.getItem("token")}` } : {}) },
         body: JSON.stringify(payload)
       });
 

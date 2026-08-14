@@ -1,8 +1,15 @@
-// Central place for environment-driven config.
-// In development, create a `.env` file at your project root with:
-//   REACT_APP_API_URL=http://localhost:5001
-// In production (Vercel/Netlify/your host), set REACT_APP_API_URL to your
-// real API domain as an environment variable in the hosting dashboard.
+// Browser requests use the same origin by default. In Vite development this
+// goes through the HTTPS proxy; in Docker production it goes through Nginx.
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, "");
+const usesLocalApi = configuredApiUrl && /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?\/api$/i.test(configuredApiUrl);
 
+export const API_ORIGIN = configuredApiUrl && !usesLocalApi
+  ? configuredApiUrl.replace(/\/api$/, "")
+  : "";
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+export const API_PREFIX = configuredApiUrl && !usesLocalApi ? configuredApiUrl : "/api";
+
+export function apiUrl(path = "") {
+  const suffix = path ? `/${path.replace(/^\/+/, "")}` : "";
+  return `${API_PREFIX}${suffix}`;
+}

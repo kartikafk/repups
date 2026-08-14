@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { C, useBreakpoint } from "../theme";
 import { Card, SectionLabel } from "../components";
+import { apiUrl } from "../../config";
+import { authHeaders } from "../../api";
 
 // ─── VIEW: PROFILE ────────────────────────────────────────────────────────────
 export default function ProfileView({ trainer: initialTrainer }) {
@@ -26,10 +28,13 @@ export default function ProfileView({ trainer: initialTrainer }) {
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // 🔄 Watch for incoming database trainer data and sync form state
   useEffect(() => {
     if (initialTrainer) {
+      setPhotoUrl(initialTrainer.photoUrl || "");
       setFormData({
         name: initialTrainer.name || "",
         title: initialTrainer.title || "Elite Strength & Conditioning Coach",
@@ -57,6 +62,26 @@ export default function ProfileView({ trainer: initialTrainer }) {
     }));
   };
 
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setMessage("Please choose a JPG, PNG, or WEBP image under 5MB.");
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const body = new FormData(); body.append("photo", file);
+      const res = await fetch(apiUrl("me/photo"), { method: "POST", headers: authHeaders(), body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Photo upload failed.");
+      setPhotoUrl(data.photoUrl);
+      const stored = JSON.parse(localStorage.getItem("user") || "{}");
+      localStorage.setItem("user", JSON.stringify({ ...stored, photoUrl: data.photoUrl }));
+      setMessage("Profile photo updated.");
+    } catch (error) { setMessage(error.message); } finally { setUploadingPhoto(false); }
+  };
+
   const handleSave = async () => {
     setMessage("");
     setSaving(true);
@@ -81,9 +106,9 @@ export default function ProfileView({ trainer: initialTrainer }) {
     }
 
     try {
-      const res = await fetch(`http://localhost:5001/api/trainers/${trainerId}`, {
+      const res = await fetch(apiUrl(`trainers/${trainerId}`), {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(formData)
       });
 
@@ -124,10 +149,11 @@ export default function ProfileView({ trainer: initialTrainer }) {
         <Card style={{ padding: 24 }}>
           <SectionLabel>Basic Information</SectionLabel>
           <div style={{ display: "flex", gap: 20, alignItems: "flex-start", marginBottom: 20 }}>
-            <div style={{ width: 80, height: 80, borderRadius: "50%", background: C.limeGlow, border: `2px solid ${C.lime}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 800, color: C.lime, flexShrink: 0 }}>
-              {initials}
+            <div style={{ width: 80, height: 80, borderRadius: "50%", background: photoUrl ? `center/cover no-repeat url(${photoUrl})` : C.limeGlow, border: `2px solid ${C.lime}44`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 800, color: C.lime, flexShrink: 0 }}>
+              {!photoUrl && initials}
             </div>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+              <label style={{ color: C.lime, fontSize: 12, cursor: "pointer" }}>{uploadingPhoto ? "Uploading photo…" : "Change profile photo"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} disabled={uploadingPhoto} style={{ display: "none" }} /></label>
               <input 
                 value={formData.name} 
                 onChange={e => setFormData({ ...formData, name: e.target.value })} 

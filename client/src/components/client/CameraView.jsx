@@ -39,7 +39,7 @@ stop
 
     const startCamera = async () => {
       try {
-        // Reduced logging to avoid exposing runtime internals in console
+        console.log('[CameraView] starting camera flow', { shouldStart, facingMode });
 
         let attempts = 0;
         while (!localVideoRef.current && attempts < 30) {
@@ -48,6 +48,7 @@ stop
         }
 
         const videoNode = localVideoRef.current;
+        console.log('[CameraView] video ref state', { hasVideo: !!videoNode, nodeType: videoNode?.nodeName });
 
         if (cancelled) return;
         if (!videoNode) {
@@ -55,11 +56,12 @@ stop
         }
 
         videoRef.current = videoNode;
+        console.log('Assigning videoRef', videoNode);
         await start(facingMode, videoNode);
         if (!cancelled) started = true;
       } catch (error) {
         if (!cancelled) {
-          console.error('[CameraView] start failed');
+          console.error('[CameraView] start failed:', error);
         }
       }
     };
@@ -115,3 +117,39 @@ stop
 
       <button className="end-set-btn" onClick={handleEndSetClick}>
         END SET → REPORT
+      </button>
+
+      <div className="hud-bottom">
+        <div className="cue-bar">
+          <div className="cue-dot" style={{ background: cueColor, boxShadow: `0 0 12px ${cueColor}` }} />
+          <div className="cue-text">{cue.text}</div>
+        </div>
+        <div className="stat-row">
+          <div className="stat-box rep-box">
+            <div className="stat-label">Reps</div>
+            <div className="stat-value">{repCount}</div>
+          </div>
+          <div className="stat-box">
+            <div className="stat-label">Rom</div>
+            <div className="stat-value" style={{ fontSize: 22 }}>
+              {rom !== null ? `${rom}°` : '—'}
+            </div>
+          </div>
+          <div className="stat-box">
+            <div className="stat-label">Tempo</div>
+            <div className="stat-value" style={{ fontSize: 22 }}>
+              {tempo ? `${tempo.ecc.toFixed(1)}·${tempo.pause.toFixed(1)}·${tempo.con.toFixed(1)}` : '—'}
+            </div>
+          </div>
+        </div>
+        <div className="tempo-phases">
+          <div className={`phase-chip ${phase === 'descending' ? 'on' : ''}`}>ECCENTRIC</div>
+          <div className={`phase-chip ${phase === 'paused' ? 'on' : ''}`}>PAUSE</div>
+          <div className={`phase-chip ${phase === 'ascending' ? 'on' : ''}`}>CONCENTRIC</div>
+        </div>
+        <div className="live-biomechanics">
+        </div>
+      </div>
+    </div>
+  );
+}

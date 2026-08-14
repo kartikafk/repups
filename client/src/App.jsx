@@ -4,15 +4,22 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocat
 // 📂 Client Components
 import CameraView from "./components/client/CameraView";
 import ReportView from "./components/client/ReportView";
-import CommunityFeed from "./components/client/CommunityFeed";
-import TrainerDiscovery from "./components/client/TrainerDiscovery";
-import AIOnboardingChat from "./components/client/AIOnboardingChat";
-import PostureAssessment from "./components/client/PostureAssessment";
-import HomeDashboard from "./components/client/HomeDashboard";
+import AICoachPage from "./components/client/AICoachPage";
+import CommunityPage from "./components/client/CommunityPage";
+import FindTrainerPage from "./components/client/FindTrainerPage";
+import WorkoutAssessmentPage from "./components/client/WorkoutAssessmentPage";
+import ClientDashboardPage from "./components/client/ClientDashboardPage";
 import WorkoutSessionPlayer from "./components/client/WorkoutSessionPlayer"; 
 import RepUpsSignup from "./components/signup"; 
+import MessagesPage from "./components/client/MessagesPage";
 import TrainerChat from "./components/client/Trainerchat";
 import TrainerProfileView from "./components/client/TrainerProfileView";
+import { AdminLogin, AdminPanel } from "./admin/AdminPanel";
+import ClientProfilePage from "./components/client/ClientProfilePage";
+import EventsGymsPage from "./components/client/EventsGymsPage";
+import WorkoutPlanPage from "./components/client/WorkoutPlanPage";
+import QnAPage from "./components/client/QnAPage";
+import NotificationsPage from "./components/client/NotificationsPage";
 
 // 🏋️ Trainer Portal Component
 import TrainerDashboard from "./trainer/pages/Trainerdashboard";
@@ -162,18 +169,26 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/" element={<RepUpsSignup />} />
-        <Route path="/ai-onboarding" element={<AIOnboardingChat />} />
-        <Route path="/posture-assessment" element={<PostureAssessment />} />
-        <Route path="/dashboard" element={<HomeDashboard />} />
+        <Route path="/ai-onboarding" element={<AICoachPage />} />
+        <Route path="/posture-assessment" element={<WorkoutAssessmentPage />} />
+        <Route path="/dashboard" element={<ClientDashboardPage />} />
         <Route path="/trainer-dashboard" element={<TrainerDashboard />} />
         <Route path="/session" element={<WorkoutSessionPlayer />} />
         <Route path="/workout" element={<WorkoutFlow />} />
         <Route path="/report" element={<ReportRouteWrapper />} />
-        <Route path="/ai-coach" element={<AIOnboardingChat />} /> 
-        <Route path="/community" element={<CommunityFeed />} />
-        <Route path="/trainers" element={<TrainerDiscovery />} />
+        <Route path="/ai-coach" element={<AICoachPage />} /> 
+        <Route path="/community" element={<CommunityPage />} />
+        <Route path="/trainers" element={<FindTrainerPage />} />
         <Route path="/trainer-chat" element={<TrainerChatWrapper />} />
         <Route path="/trainer-profile" element={<TrainerProfileRouteWrapper />} />
+        <Route path="/client/profile" element={<ClientProfilePage />} />
+        <Route path="/client/workout-plan" element={<WorkoutPlanPage />} />
+        <Route path="/client/qna" element={<QnAPage />} />
+        <Route path="/client/notifications" element={<NotificationsPage />} />
+        <Route path="/client/messages" element={<MessagesPage />} />
+        <Route path="/client/events-gyms" element={<EventsGymsPage />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminPanel />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

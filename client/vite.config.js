@@ -1,3 +1,5 @@
+
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import basicSsl from '@vitejs/plugin-basic-ssl'
@@ -16,6 +18,12 @@ export default defineConfig({
         target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
+      },
+      '/socket.io': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
       }
     }
   }

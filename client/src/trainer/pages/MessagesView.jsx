@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { io } from "socket.io-client";
+import { API_ORIGIN, apiUrl } from "../../config.js";
 import { C, useBreakpoint } from "../theme";
 import { Avatar } from "../components";
 
@@ -27,7 +28,7 @@ export default function MessagesView() {
         return parsed._id || parsed.id;
       }
     } catch (e) {}
-    return localStorage.getItem("trainerId") || "t1";
+    return localStorage.getItem("trainerId") || null;
   };
 
   const trainerId = getTrainerId();
@@ -39,9 +40,12 @@ export default function MessagesView() {
   useEffect(() => {
     if (!trainerId) return;
 
-    socketRef.current = io("http://localhost:5001", {
+    const socketOptions = {
       auth: { token }
-    });
+    };
+    // In Vite development this uses the same HTTPS origin and is proxied to
+    // Socket.IO, avoiding a mixed-content ws://localhost connection.
+    socketRef.current = API_ORIGIN ? io(API_ORIGIN, socketOptions) : io(socketOptions);
 
     socketRef.current.on("message:new", (msg) => {
       const key = msg.clientId;
@@ -62,7 +66,7 @@ export default function MessagesView() {
   useEffect(() => {
     async function fetchConversations() {
       try {
-        const res = await fetch(`http://localhost:5001/api/messages/conversations/${trainerId}`, {
+        const res = await fetch(apiUrl(`messages/conversations/${trainerId}`), {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -88,7 +92,7 @@ export default function MessagesView() {
 
     async function fetchThread() {
       try {
-        const res = await fetch(`http://localhost:5001/api/messages/thread?trainerId=${trainerId}&clientId=${activeChat}`, {
+        const res = await fetch(apiUrl(`messages/thread?trainerId=${trainerId}&clientId=${activeChat}`), {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -135,7 +139,7 @@ export default function MessagesView() {
     setInput("");
 
     try {
-      const res = await fetch(`http://localhost:5001/api/messages/send`, {
+      const res = await fetch(apiUrl("messages/send"), {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

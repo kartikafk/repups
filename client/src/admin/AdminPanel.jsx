@@ -1,0 +1,27 @@
+import { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { apiUrl } from "../config.js";
+
+const api = async (path, options = {}) => {
+  const response = await fetch(apiUrl(`admin/${path}`), { ...options, headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}`, ...options.headers } });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Admin request failed.");
+  return data;
+};
+
+export function AdminLogin() {
+  const navigate = useNavigate(); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [error, setError] = useState("");
+  const submit = async (event) => { event.preventDefault(); try { const response = await fetch(apiUrl("auth/signin"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, role: "admin" }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); localStorage.setItem("token", data.token); localStorage.setItem("user", JSON.stringify(data.user)); navigate("/admin", { replace: true }); } catch (err) { setError(err.message || "Unable to sign in."); } };
+  return <main style={styles.login}><form onSubmit={submit} style={styles.card}><h1>RepUps Admin</h1><p>Sign in with an administrator account.</p>{error && <p style={styles.error}>{error}</p>}<input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /><input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /><button>Sign in</button></form></main>;
+}
+
+export function AdminPanel() {
+  const navigate = useNavigate(); const [tab, setTab] = useState("dashboard"); const [data, setData] = useState(null); const [query, setQuery] = useState(""); const [role, setRole] = useState("all"); const [error, setError] = useState(""); const user = JSON.parse(localStorage.getItem("user") || "null");
+  const load = async () => { try { setError(""); const endpoint = tab === "users" ? `users?role=${role}&q=${encodeURIComponent(query)}` : tab === "audit" ? "audit-logs" : "dashboard"; setData(await api(endpoint)); } catch (err) { setError(err.message); } };
+  useEffect(() => { if (user?.role === "admin") load(); }, [tab, role]);
+  if (user?.role !== "admin") return <Navigate to="/admin/login" replace />;
+  const suspend = async (item) => { await api(`users/${item.role}/${item._id}`, { method: "PATCH", body: JSON.stringify({ accountStatus: item.accountStatus === "suspended" ? "active" : "suspended" }) }); load(); };
+  return <main style={styles.shell}><aside style={styles.side}><h2>REPUPS ADMIN</h2>{[["dashboard", "Dashboard"], ["users", "Users"], ["audit", "Audit logs"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)}>{label}</button>)}<button onClick={() => { localStorage.clear(); navigate("/admin/login"); }}>Sign out</button></aside><section style={styles.content}><h1>{tab === "dashboard" ? "Dashboard" : tab === "users" ? "Users" : "Audit logs"}</h1>{error && <p style={styles.error}>{error}</p>}{tab === "users" && <form onSubmit={(e) => { e.preventDefault(); load(); }} style={styles.filters}><input placeholder="Search name or email" value={query} onChange={(e) => setQuery(e.target.value)} /><select value={role} onChange={(e) => setRole(e.target.value)}>{["all", "client", "trainer", "admin"].map((x) => <option key={x}>{x}</option>)}</select><button>Search</button></form>}{tab === "dashboard" && <div style={styles.stats}>{Object.entries(data?.stats || {}).map(([key, value]) => <div style={styles.stat} key={key}><small>{key.replace(/([A-Z])/g, " $1")}</small><strong>{value}</strong></div>)}</div>}{tab === "users" && <Table headers={["Name", "Role", "Status", "Created", "Action"]} rows={(data?.users || []).map((item) => [item.name, item.role, item.accountStatus, new Date(item.createdAt).toLocaleDateString(), <button onClick={() => suspend(item)}>{item.accountStatus === "suspended" ? "Reactivate" : "Suspend"}</button>])} />}{tab === "audit" && <Table headers={["When", "Action", "Target"]} rows={(data?.logs || []).map((item) => [new Date(item.createdAt).toLocaleString(), item.action, `${item.targetType}: ${item.targetId}`])} />}</section></main>;
+}
+function Table({ headers, rows }) { return <table style={styles.table}><thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody></table>; }
+const styles = { login: { minHeight: "100vh", display: "grid", placeItems: "center", background: "#0b1018", color: "white" }, card: { display: "grid", gap: 12, width: 340, padding: 28, background: "#172131", borderRadius: 12 }, shell: { minHeight: "100vh", display: "flex", background: "#0b1018", color: "#f4f7fb", fontFamily: "Arial" }, side: { width: 210, display: "grid", alignContent: "start", gap: 10, padding: 22, background: "#141c29" }, content: { flex: 1, padding: 32 }, filters: { display: "flex", gap: 8, marginBottom: 18 }, stats: { display: "flex", flexWrap: "wrap", gap: 14 }, stat: { display: "grid", gap: 8, minWidth: 130, padding: 18, background: "#172131", borderRadius: 8 }, table: { width: "100%", borderCollapse: "collapse", background: "#172131" }, error: { color: "#ff6c7b" } };

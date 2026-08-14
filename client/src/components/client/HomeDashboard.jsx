@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { authHeaders } from "../../api.js";
 
 const C = {
   bg: "#0a0a0a", surface: "#111111", card: "#161616", border: "#222222",
@@ -23,6 +24,8 @@ const quickLinks = [
   { id: "ai-coach", label: "AI Coach", icon: "🤖", color: "#FF9F43", route: "/ai-coach" },
   { id: "community", label: "Community", icon: "👥", color: "#B892FF", route: "/community" },
 ];
+
+quickLinks[0] = { id: "events-gyms", label: "Events & Gyms", icon: "📅🏋️", color: C.blue, route: "/client/events-gyms" };
 
 const badgeDefs = [
   { id: "streak7", label: "7 Day Streak", icon: "🔥", type: "streak", threshold: 7 },
@@ -131,7 +134,9 @@ function MuscleGroupMetricWidget({ userId }) {
     if (!userId) return;
     async function fetchAndAggregate() {
       try {
-        const res = await fetch(`/api/sessions?userId=${userId}`);
+        const res = await fetch(`/api/sessions?userId=${userId}`, {
+          headers: authHeaders(),
+        });
         if (res.ok) {
           const sessions = await res.json();
           const groupedByMuscle = {};
@@ -386,6 +391,7 @@ function ReferralSection() {
 
 export default function HomeDashboard() {
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // 🛡️ Role Guard: Automatically redirect trainers back to their own dashboard
   useEffect(() => {
@@ -420,7 +426,9 @@ export default function HomeDashboard() {
     const fetchPostureScore = async () => {
       if (!profileId) return;
       try {
-        const res = await fetch(`/api/posture/${profileId}/latest`);
+        const res = await fetch(`/api/posture/${profileId}/latest`, {
+          headers: authHeaders(),
+        });
         if (!res.ok) return;
         const data = await res.json();
         if (data.success && data.record && typeof data.record.overallScore === "number") {
@@ -435,7 +443,9 @@ export default function HomeDashboard() {
     const fetchLiveTelemetry = async () => {
       if (!profileId) return;
       try {
-        const res = await fetch(`/api/sessions?userId=${profileId}`);
+        const res = await fetch(`/api/sessions?userId=${profileId}`, {
+          headers: authHeaders(),
+        });
         if (!res.ok) return;
 
         const sessions = await res.json();
@@ -464,7 +474,9 @@ export default function HomeDashboard() {
       return;
     }
     try {
-      const res = await fetch(`/api/posture/${profileId}/latest`);
+      const res = await fetch(`/api/posture/${profileId}/latest`, {
+        headers: authHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.record) {
@@ -528,8 +540,10 @@ export default function HomeDashboard() {
             </div>
             <div style={{ fontSize: 12, color: C.sub }}>🔥 {d.streak} day streak — keep it going</div>
           </div>
-          <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.lime, color: "#000", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
-            {userName.slice(0, 2).toUpperCase()}
+          <div style={{ display:"flex", alignItems:"center", gap:8, position:"relative" }}>
+            <button aria-label="Open profile" onClick={() => navigate("/client/profile")} style={{ width:40,height:40,borderRadius:"50%",border:0,background:C.lime,color:"#000",fontWeight:900,cursor:"pointer" }}>{userName.slice(0,2).toUpperCase()}</button>
+            <button aria-label="Open menu" onClick={() => setMenuOpen(v => !v)} style={{ width:40,height:40,border:`1px solid ${C.border}`,borderRadius:8,background:C.card,color:C.text,fontSize:21,cursor:"pointer" }}>☰</button>
+            {menuOpen && <nav style={{ position:"absolute",right:0,top:48,zIndex:5,width:190,background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:6,boxShadow:"0 12px 30px #0008" }}>{[["Workout Plan","/client/workout-plan"],["Q&A","/client/qna"],["Community","/community"],["Events & Gyms","/client/events-gyms"],["AI Coach","/ai-coach"],["Notifications","/client/notifications"],["Messages","/client/messages"]].map(([label,route])=><button key={route} onClick={()=>{setMenuOpen(false);navigate(route)}} style={{display:"block",width:"100%",textAlign:"left",border:0,background:"transparent",color:C.text,padding:"10px",cursor:"pointer"}}>{label}</button>)}</nav>}
           </div>
         </div>
 

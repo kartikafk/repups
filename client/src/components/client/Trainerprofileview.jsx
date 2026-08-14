@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../config.js";
 
 const C = {
   bg: "#0a0a0a", surface: "#111111", card: "#161616", card2: "#1a1a1a", border: "#222222",
@@ -85,7 +86,7 @@ export default function TrainerProfileView({ trainerId, onBack, onMessage, onSch
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:5001/api/trainers/${trainerId}`, {
+        const res = await fetch(apiUrl(`trainers/${trainerId}`), {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const data = await res.json();
@@ -97,7 +98,7 @@ export default function TrainerProfileView({ trainerId, onBack, onMessage, onSch
       // Optional endpoints — profile still renders fine if these 404 or
       // aren't built yet, they just show empty states instead.
       try {
-        const revRes = await fetch(`http://localhost:5001/api/trainers/${trainerId}/reviews`, {
+        const revRes = await fetch(apiUrl(`trainers/${trainerId}/reviews`), {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const revData = await revRes.json();
@@ -107,7 +108,7 @@ export default function TrainerProfileView({ trainerId, onBack, onMessage, onSch
       }
 
       try {
-        const simRes = await fetch(`http://localhost:5001/api/trainers?exclude=${trainerId}&limit=4`, {
+        const simRes = await fetch(apiUrl(`trainers?exclude=${trainerId}&limit=4`), {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const simData = await simRes.json();
