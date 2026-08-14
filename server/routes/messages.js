@@ -4,6 +4,7 @@ import Trainer from '../models/Trainer.js'; // 🔑 Import Trainer model to fetc
 import { requireAuth, isPairMember } from '../middleware/auth.js';
 import { emitToPair } from '../sockets/index.js';
 import logger from '../utils/logger.js';
+import { hasAcceptedConnection } from '../models/TrainerClientConnection.js';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -15,6 +16,9 @@ router.get('/conversations/:trainerId', async (req, res) => {
     if (req.user.role === 'trainer' && String(req.user.id) !== trainerId) {
       return res.status(403).json({ success: false, error: "Cannot view another trainer's conversations." });
     }
+    if (req.user.role === 'client' && !await hasAcceptedConnection(trainerId, req.user.id)) {
+      return res.status(403).json({ success: false, error: "You are not connected to this trainer." });
+    }
 
     // 1. Fetch real trainer document from database to get their actual name
     const trainerDoc = await Trainer.findById(trainerId).select('name');
@@ -22,7 +26,11 @@ router.get('/conversations/:trainerId', async (req, res) => {
     const initials = realTrainerName.split(" ").map(n => n[0]).join("").toUpperCase();
 
     // 2. Aggregate unique clients messaged by this trainer to build the sidebar list
-    const messages = await Message.find({ trainerId }).sort({ createdAt: -1 });
+    // A client may only ever receive their own thread, not every client that
+    // has messaged a trainer. Trainers receive the conversations they own.
+    const messages = await Message.find(req.user.role === 'client'
+      ? { trainerId, clientId: req.user.id }
+      : { trainerId }).sort({ createdAt: -1 });
 
     const conversationMap = {};
     messages.forEach(m => {
@@ -59,6 +67,9 @@ router.get('/thread', async (req, res) => {
     if (!isPairMember(req, trainerId, clientId)) {
       return res.status(403).json({ success: false, error: 'Not part of this conversation.' });
     }
+    if (!await hasAcceptedConnection(trainerId, clientId)) {
+      return res.status(403).json({ success: false, error: "This conversation requires an accepted trainer-client connection." });
+    }
 
     const thread = await Message.find({ trainerId, clientId }).sort({ createdAt: 1 });
 
@@ -86,6 +97,9 @@ router.post('/send', async (req, res) => {
     }
     if (!isPairMember(req, trainerId, clientId)) {
       return res.status(403).json({ success: false, error: 'Not part of this conversation.' });
+    }
+    if (!await hasAcceptedConnection(trainerId, clientId)) {
+      return res.status(403).json({ success: false, error: "This conversation requires an accepted trainer-client connection." });
     }
 
     const newMessage = new Message({

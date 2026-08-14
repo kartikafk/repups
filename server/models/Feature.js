@@ -1,0 +1,14 @@
+import mongoose from "mongoose";
+const { Schema } = mongoose;
+const notificationSchema = new Schema({ userId: { type: String, required: true, index: true }, title: String, body: String, type: { type: String, default: "system" }, readAt: { type: Date, default: null } }, { timestamps: true });
+const planSchema = new Schema({ trainerId: { type: String, required: true, index: true }, clientId: { type: String, required: true, index: true }, name: { type: String, required: true }, goal: String, duration: String, days: [{ name: String, exercises: [{ name: String, sets: String, reps: String, rest: String, instructions: String }] }], notes: String, status: { type: String, default: "active" } }, { timestamps: true });
+const questionSchema = new Schema({ trainerId: { type: String, required: true, index: true }, clientId: { type: String, required: true, index: true }, question: { type: String, required: true, trim: true, maxlength: 2000 }, answer: { type: String, default: null }, answeredAt: Date }, { timestamps: true });
+const reviewSchema = new Schema({ trainerId: { type: String, required: true, index: true }, clientId: { type: String, required: true, index: true }, bookingId: { type: Schema.Types.ObjectId, required: true, unique: true }, rating: { type: Number, required: true, min: 1, max: 5 }, comment: { type: String, trim: true, maxlength: 2000 } }, { timestamps: true });
+const gymSchema = new Schema({ name: { type: String, required: true }, location: String, description: String, imageUrl: String, contact: String, openingHours: String, facilities: [String] }, { timestamps: true });
+const eventSchema = new Schema({ name: { type: String, required: true }, description: String, startsAt: { type: Date, required: true }, location: String, imageUrl: String, organizer: String, capacity: Number, registrations: [{ type: String }] }, { timestamps: true });
+export const Notification = mongoose.model("Notification", notificationSchema);
+export const WorkoutPlan = mongoose.model("WorkoutPlan", planSchema);
+export const Question = mongoose.model("Question", questionSchema);
+export const Review = mongoose.model("Review", reviewSchema);
+export const Gym = mongoose.model("Gym", gymSchema);
+export const Event = mongoose.model("Event", eventSchema);

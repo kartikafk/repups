@@ -5,6 +5,7 @@ const trainerSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, index: true },
   password: { type: String, required: true },
+  accountStatus: { type: String, enum: ['active', 'suspended'], default: 'active', index: true },
   title: { type: String, default: 'Elite Strength & Conditioning Coach' },
   gym: { type: String, default: '' },
   locationName: { type: String, default: 'Mumbai, India' },
@@ -23,6 +24,7 @@ const trainerSchema = new mongoose.Schema({
   verified: { type: Boolean, default: false },
   rating: { type: Number, default: 4.9 },
   reviewsCount: { type: Number, default: 127 },
+  photoUrl: { type: String, default: '' },
   pricing: {
     personalTraining: { type: Number, default: 2500 },
     videoConsultation: { type: Number, default: 1500 },

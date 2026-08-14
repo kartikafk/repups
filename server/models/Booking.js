@@ -7,7 +7,7 @@ const BookingSchema = new mongoose.Schema(
     slotTime: { type: Date, required: true },
     status: {
       type: String,
-      enum: ["scheduled", "live", "completed", "cancelled"],
+      enum: ["scheduled", "confirmed", "live", "completed", "cancelled"],
       default: "scheduled",
     },
     callRoomId: { type: String, default: null },

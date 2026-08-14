@@ -16,6 +16,8 @@ import messagesRouter from './routes/messages.js';       // 👈 Import the mess
 import bookingsRouter from './routes/bookings.js';     // 👈 Import the new bookings router
 import { initSockets } from './sockets/index.js';      // 👈 Import socket initializer
 import communityRouter from './routes/community.js';
+import adminRouter from './routes/admin.js';
+import featuresRouter from './routes/features.js';
 import logger from './utils/logger.js';
 
 dotenv.config();
@@ -29,12 +31,30 @@ initSockets(io);
 app.use(helmet());
 
 // Middleware
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || (process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5173');
-if (process.env.NODE_ENV === 'production' && !CLIENT_ORIGIN) {
+const configuredOrigins = process.env.CLIENT_ORIGIN
+  ?.split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = configuredOrigins?.length
+  ? configuredOrigins
+  : (process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173']);
+
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
   logger.error('FATAL: CLIENT_ORIGIN must be set in production');
   process.exit(1);
 }
-app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
+app.use(cors({
+  origin(origin, callback) {
+    // Requests without an Origin header (such as curl or server-to-server calls)
+    // do not need CORS validation.
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  credentials: true,
+}));
 
 // Increased payload limits to handle camera snapshot frames & video data cleanly
 app.use(express.json({ limit: '50mb' }));
@@ -53,6 +73,8 @@ app.use('/api/trainers', trainerAuthRouter);
 app.use('/api/messages', messagesRouter); 
 app.use('/api', bookingsRouter); 
 app.use('/api/community', communityRouter);// 👈 Mount bookings routes (e.g., /api/trainers/:trainerId/slots, /api/bookings)
+app.use('/api/admin', adminRouter);
+app.use('/api', featuresRouter);
 
 const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI;

@@ -2,9 +2,12 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
-    role: { type: String, enum: ["trainer", "client"], required: true, default: "client" },
+    role: { type: String, enum: ["admin", "trainer", "client"], required: true, default: "client" },
+    accountStatus: { type: String, enum: ["active", "suspended"], default: "active", index: true },
+    deletedAt: { type: Date, default: null },
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    username: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
     password: { type: String, required: true },
 
     // 📍 Real GeoJSON Coordinates [longitude, latitude]
@@ -24,6 +27,8 @@ const UserSchema = new mongoose.Schema(
     age: { type: Number, default: null },
     fitnessLevel: { type: String, default: "" },
     goal: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    photoUrl: { type: String, default: "" },
   },
   { timestamps: true }
 );

@@ -4,8 +4,10 @@ import fs from "fs";
 import path from "path";
 import { Post, Challenge, FriendChallenge } from "../models/Community.js";
 import User from "../models/User.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
+router.use(requireAuth);
 
 // ── Upload setup ────────────────────────────────────────────────────────
 // Ensure the uploads folder actually exists (won't error on a fresh clone
@@ -57,7 +59,8 @@ router.post("/feed", (req, res) => {
     }
 
     try {
-      const { authorId, name, avatar, type, text, exercise, stat } = req.body;
+      const { name, avatar, type, text, exercise, stat } = req.body;
+      const authorId = req.user.id;
 
       if (!isValidObjectId(authorId)) {
         // Previously this silently fell back to a shared fake ObjectId.
@@ -95,7 +98,7 @@ router.post("/feed", (req, res) => {
 // 3. LIKE / UNLIKE POST
 router.post("/feed/:id/like", async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = req.user.id;
     if (!isValidObjectId(userId)) {
       return res.status(401).json({ success: false, error: "Missing or invalid user ID. Please log in again." });
     }
