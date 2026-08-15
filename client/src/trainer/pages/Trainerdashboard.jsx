@@ -82,7 +82,7 @@ export default function TrainerDashboard() {
     qna:          <QnAView />,
     plans:        <PlansView onNav={navigateTo} />,
     planBuilder:  <ProgramBuilderView onNav={navigateTo} />,
-    assessments:  <AssessmentsView />,
+    assessments:  <AssessmentsView onOpenClient={openClient} />,
     reviews:      <ReviewsView />,
     earnings:     <EarningsView />,
     billing:      <BillingView />,

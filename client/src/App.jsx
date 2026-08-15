@@ -12,6 +12,9 @@ import ClientDashboardPage from "./components/client/ClientDashboardPage";
 import WorkoutSessionPlayer from "./components/client/WorkoutSessionPlayer"; 
 import RepUpsSignup from "./components/signup"; 
 import MessagesPage from "./components/client/MessagesPage";
+import MyTrainerPage from "./components/client/MyTrainerPage";
+import TrainerListPage from "./components/client/TrainerListPage";
+import ClientTrainerProfilePage from "./components/client/TrainerProfilePage";
 import TrainerChat from "./components/client/Trainerchat";
 import TrainerProfileView from "./components/client/TrainerProfileView";
 import { AdminLogin, AdminPanel } from "./admin/AdminPanel";
@@ -23,6 +26,7 @@ import NotificationsPage from "./components/client/NotificationsPage";
 
 // 🏋️ Trainer Portal Component
 import TrainerDashboard from "./trainer/pages/Trainerdashboard";
+import AssessmentReportPage from "./trainer/pages/AssessmentReportPage";
 
 // 🎣 Hooks
 import { usePoseTracker } from "./hooks/usePoseTracker";
@@ -173,6 +177,7 @@ export default function App() {
         <Route path="/posture-assessment" element={<WorkoutAssessmentPage />} />
         <Route path="/dashboard" element={<ClientDashboardPage />} />
         <Route path="/trainer-dashboard" element={<TrainerDashboard />} />
+        <Route path="/trainer/assessment-report/:assessmentId" element={<AssessmentReportPage />} />
         <Route path="/session" element={<WorkoutSessionPlayer />} />
         <Route path="/workout" element={<WorkoutFlow />} />
         <Route path="/report" element={<ReportRouteWrapper />} />
@@ -185,7 +190,9 @@ export default function App() {
         <Route path="/client/workout-plan" element={<WorkoutPlanPage />} />
         <Route path="/client/qna" element={<QnAPage />} />
         <Route path="/client/notifications" element={<NotificationsPage />} />
-        <Route path="/client/messages" element={<MessagesPage />} />
+        <Route path="/client/my-trainer" element={<MyTrainerPage />} />
+        <Route path="/client/trainers" element={<TrainerListPage />} />
+        <Route path="/client/trainers/:trainerId" element={<ClientTrainerProfilePage />} />
         <Route path="/client/events-gyms" element={<EventsGymsPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminPanel />} />
