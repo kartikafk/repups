@@ -316,9 +316,9 @@ const res = await fetch(`/api/sessions?${query.toString()}`, { headers: authHead
         </div>
 
         {/* Header */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+    <div className="workout-session-hero" style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
-            <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, fontSize:20, letterSpacing:1 }}>Custom Workout Engine</div>
+            <div className="workout-session-title" style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, fontSize:20, letterSpacing:1 }}>Workout Tracking</div>
             <div style={{ fontSize:11, color:C.sub }}>
               {isReadOnly ? "🔒 Historical Read-Only View" : "Select Target & Log Sets"}
             </div>

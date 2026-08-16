@@ -156,12 +156,22 @@ export default function RepUpsSignup() {
         body: JSON.stringify(payload),
       });
 
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Server didn't return JSON. Ensure your Node backend is running.");
-      }
+      const contentType = res.headers.get("content-type") || "";
+      const responseText = await res.text();
+      let data;
 
-      const data = await res.json();
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        const statusMessage = res.status
+          ? `Request failed (${res.status}).`
+          : "Unable to reach the server.";
+        throw new Error(
+          contentType.includes("text/html")
+            ? `${statusMessage} The development proxy returned an HTML error page. Restart the Vite dev server and try again.`
+            : `${statusMessage} The server returned an unexpected response.`
+        );
+      }
 
       if (res.ok && data.success) {
         const loggedUser = data.user || data;

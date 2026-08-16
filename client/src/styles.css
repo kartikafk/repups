@@ -2503,3 +2503,48 @@ html, body, #root {
 .workout-session-content input { min-height:46px; border-radius:12px !important; }
 .workout-session-content button { min-height:38px; }
 .workout-session-content button:focus-visible { outline:2px solid var(--mobile-lime); outline-offset:2px; }
+
+/* Live workout player: compact mobile tracking console. */
+.workout-session-page {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(200, 241, 53, .16), transparent 30rem),
+    linear-gradient(180deg, #090b0d 0%, #0d1011 100%) !important;
+}
+.workout-session-content {
+  gap: 14px !important;
+}
+.workout-session-content > div:first-of-type button {
+  background: rgba(255,255,255,.045) !important;
+  border-color: rgba(200,241,53,.35) !important;
+  border-radius: 999px !important;
+  color: var(--mobile-lime) !important;
+  padding: 7px 13px !important;
+}
+.workout-session-hero {
+  padding: 4px 2px 6px;
+}
+.workout-session-title {
+  color: #f8faf8;
+  font-family: var(--title-font) !important;
+  font-size: 26px !important;
+  letter-spacing: -.7px !important;
+  line-height: 1;
+}
+.workout-session-hero > div:last-child {
+  background: rgba(200,241,53,.10) !important;
+  border-color: rgba(200,241,53,.30) !important;
+  border-radius: 14px !important;
+  min-width: 76px;
+}
+.workout-session-content > div:not(.workout-session-hero) {
+  background: rgba(20, 23, 25, .92) !important;
+}
+.workout-session-content input,
+.workout-session-content select {
+  background: #0c0f10 !important;
+  border-color: rgba(255,255,255,.11) !important;
+}
+@media (min-width: 700px) {
+  .workout-session-page { padding-top: 20px; }
+  .workout-session-content { max-width: 560px !important; }
+}
