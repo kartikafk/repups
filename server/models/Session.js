@@ -39,7 +39,10 @@ const SessionSchema = new mongoose.Schema(
         label: String,
         count: Number
       }
-    ]
+    ],
+    featureVector: { type: mongoose.Schema.Types.Mixed, default: null },
+    baseline: { type: mongoose.Schema.Types.Mixed, default: null },
+    ml: { type: mongoose.Schema.Types.Mixed, default: null }
   },
   { timestamps: true }
 );

@@ -23,6 +23,7 @@ import EventsGymsPage from "./components/client/EventsGymsPage";
 import WorkoutPlanPage from "./components/client/WorkoutPlanPage";
 import QnAPage from "./components/client/QnAPage";
 import NotificationsPage from "./components/client/NotificationsPage";
+import ClientPageShell from "./components/client/ClientPageShell";
 
 // 🏋️ Trainer Portal Component
 import TrainerDashboard from "./trainer/pages/Trainerdashboard";
@@ -168,12 +169,16 @@ function TrainerProfileRouteWrapper() {
   );
 }
 
+function ClientFrame({ title, children }) {
+  return <ClientPageShell title={title}>{children}</ClientPageShell>;
+}
+
 export default function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<RepUpsSignup />} />
-        <Route path="/ai-onboarding" element={<AICoachPage />} />
+        <Route path="/ai-onboarding" element={<ClientFrame title="AI Coach"><AICoachPage /></ClientFrame>} />
         <Route path="/posture-assessment" element={<WorkoutAssessmentPage />} />
         <Route path="/dashboard" element={<ClientDashboardPage />} />
         <Route path="/trainer-dashboard" element={<TrainerDashboard />} />
@@ -181,19 +186,19 @@ export default function App() {
         <Route path="/session" element={<WorkoutSessionPlayer />} />
         <Route path="/workout" element={<WorkoutFlow />} />
         <Route path="/report" element={<ReportRouteWrapper />} />
-        <Route path="/ai-coach" element={<AICoachPage />} /> 
-        <Route path="/community" element={<CommunityPage />} />
-        <Route path="/trainers" element={<FindTrainerPage />} />
-        <Route path="/trainer-chat" element={<TrainerChatWrapper />} />
-        <Route path="/trainer-profile" element={<TrainerProfileRouteWrapper />} />
+        <Route path="/ai-coach" element={<ClientFrame title="AI Coach"><AICoachPage /></ClientFrame>} />
+        <Route path="/community" element={<ClientFrame title="Community"><CommunityPage /></ClientFrame>} />
+        <Route path="/trainers" element={<ClientFrame title="Find a Trainer"><FindTrainerPage /></ClientFrame>} />
+        <Route path="/trainer-chat" element={<ClientFrame title="Messages"><TrainerChatWrapper /></ClientFrame>} />
+        <Route path="/trainer-profile" element={<ClientFrame title="Trainer Profile"><TrainerProfileRouteWrapper /></ClientFrame>} />
         <Route path="/client/profile" element={<ClientProfilePage />} />
-        <Route path="/client/workout-plan" element={<WorkoutPlanPage />} />
-        <Route path="/client/qna" element={<QnAPage />} />
-        <Route path="/client/notifications" element={<NotificationsPage />} />
-        <Route path="/client/my-trainer" element={<MyTrainerPage />} />
-        <Route path="/client/trainers" element={<TrainerListPage />} />
-        <Route path="/client/trainers/:trainerId" element={<ClientTrainerProfilePage />} />
-        <Route path="/client/events-gyms" element={<EventsGymsPage />} />
+        <Route path="/client/workout-plan" element={<ClientFrame title="Workout Plan"><WorkoutPlanPage /></ClientFrame>} />
+        <Route path="/client/qna" element={<ClientFrame title="Q&A"><QnAPage /></ClientFrame>} />
+        <Route path="/client/notifications" element={<ClientFrame title="Notifications"><NotificationsPage /></ClientFrame>} />
+        <Route path="/client/my-trainer" element={<ClientFrame title="My Trainer"><MyTrainerPage /></ClientFrame>} />
+        <Route path="/client/trainers" element={<ClientFrame title="Find a Trainer"><TrainerListPage /></ClientFrame>} />
+        <Route path="/client/trainers/:trainerId" element={<ClientFrame title="Trainer Profile"><ClientTrainerProfilePage /></ClientFrame>} />
+        <Route path="/client/events-gyms" element={<ClientFrame title="Explore"><EventsGymsPage /></ClientFrame>} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -25,6 +25,7 @@ const UserSchema = new mongoose.Schema(
     weight: { type: Number, default: null },
     height: { type: Number, default: null },
     age: { type: Number, default: null },
+    gender: { type: String, enum: ["male", "female", "unspecified"], default: "unspecified" },
     fitnessLevel: { type: String, default: "" },
     goal: { type: String, default: "" },
     phone: { type: String, default: "" },

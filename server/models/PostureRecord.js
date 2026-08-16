@@ -20,7 +20,10 @@ const postureRecordSchema = new mongoose.Schema({
     front: String,
     side: String,
     back: String
-  }
+  },
+  featureVector: { type: mongoose.Schema.Types.Mixed, default: null },
+  baseline: { type: mongoose.Schema.Types.Mixed, default: null },
+  ml: { type: mongoose.Schema.Types.Mixed, default: null }
 }, { timestamps: true });
 
 export default mongoose.model('PostureRecord', postureRecordSchema);

@@ -140,6 +140,11 @@ export default function TrainerDashboard() {
       <main className="trainer-main">
         {viewMap[view] || <div style={{ color:C.sub }}>Coming soon</div>}
       </main>
+      <nav className="trainer-bottom-nav" aria-label="Trainer navigation">
+        {[['dashboard', '⌂', 'Home'], ['clients', '♧', 'Clients'], ['assessments', '◎', 'Assess'], ['messages', '◌', 'Messages'], ['profile', '◉', 'Profile']].map(([id, icon, label]) => (
+          <button key={id} className={view === id ? 'active' : ''} onClick={() => navigateTo(id)}><span>{icon}</span><small>{label}</small></button>
+        ))}
+      </nav>
     </div>
   );
 }

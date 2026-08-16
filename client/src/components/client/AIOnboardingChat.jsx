@@ -135,7 +135,7 @@ function PrescriptionCard({ data }) {
 }
 
 // ── Main Component ──────────────────────────────────────────────────────────
-export default function AIOnboardingChat() {
+export default function AIOnboardingChat({ coachInsight = "" }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -158,6 +158,10 @@ export default function AIOnboardingChat() {
   const [prescription, setPrescription] = useState(null);
   const [prescriptionLoading, setPrescriptionLoading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
+
+  useEffect(() => {
+    if (coachInsight) setMessages((current) => current.some((message) => message.text === coachInsight) ? current : [...current, { role: "ai", text: coachInsight }]);
+  }, [coachInsight]);
 
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);

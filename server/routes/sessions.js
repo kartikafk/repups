@@ -1,6 +1,9 @@
 import express from 'express';
 import Session from '../models/Session.js';
 import { requireAuth } from '../middleware/auth.js';
+import { sessionFeatures } from '../services/assessmentFeatures.js';
+import { baselineFor } from '../services/cohortBaseline.js';
+import { predictAnomaly } from '../services/mlClient.js';
 
 const router = express.Router();
 // Require auth for all session routes
@@ -31,6 +34,8 @@ router.post('/', async (req, res) => {
     const targetSetIndex = setIndex !== undefined ? setIndex : 0;
     const resolvedMuscleGroup = muscleGroup || inferMuscleGroup(exercise);
 
+    const featureVector = sessionFeatures({ avgScore, avgRom, consistency, repCount, avgTempo });
+    const [baseline, ml] = await Promise.all([baselineFor(resolvedUserId, featureVector).catch(() => null), predictAnomaly({ exerciseId: exercise, features: featureVector })]);
     const session = await Session.findOneAndUpdate(
       { userId: resolvedUserId, exercise, setIndex: targetSetIndex, date: workoutDate },
       {
@@ -48,7 +53,10 @@ router.post('/', async (req, res) => {
         avgTempo,
         avgRom,
         consistency,
-        topIssues
+        topIssues,
+        featureVector,
+        baseline,
+        ml
       },
       { new: true, upsert: true }
     );
@@ -59,7 +67,9 @@ router.post('/', async (req, res) => {
       date: session.date,
       setIndex: session.setIndex,
       repCount: session.repCount,
-      avgScore: session.avgScore
+      avgScore: session.avgScore,
+      baseline: session.baseline,
+      ml: session.ml
     });
   } catch (err) {
     res.status(400).json({ error: 'Invalid session data' });

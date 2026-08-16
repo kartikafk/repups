@@ -2405,3 +2405,90 @@ html, body, #root {
   font-size: 12px;
   color: var(--ink-dim);
 }
+
+/* =====================================================================
+   REPUPS MOBILE PRODUCT SYSTEM
+   Shared client + trainer treatment based on the mobile coaching UI.
+   ===================================================================== */
+:root { --mobile-card: #101114; --mobile-card-2: #15171b; --mobile-lime: #c8f135; --mobile-blue: #2f8cff; }
+
+.client-app-shell,
+.trainer-shell {
+  background:
+    radial-gradient(circle at 100% -10%, rgba(200,241,53,.08), transparent 30%),
+    linear-gradient(180deg, #090a0c 0%, #060708 100%);
+}
+.client-app-shell { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+.client-app-shell .client-main { padding: 18px 16px 28px; }
+.client-app-shell .client-topbar,
+.trainer-topbar { min-height: 64px; background:rgba(8,9,11,.86); border-color:rgba(255,255,255,.09); }
+.client-app-shell .client-topbar-logo,
+.trainer-topbar-logo { color:#090a0c; font-weight:900; box-shadow:0 0 24px rgba(200,241,53,.25); }
+.client-app-shell .client-topbar-title,
+.trainer-topbar-title { font-size:17px; letter-spacing:-.6px; }
+.client-app-shell .client-topbar-avatar { border-color:rgba(200,241,53,.52); background:rgba(200,241,53,.08); color:var(--go); cursor:pointer; }
+.client-app-shell .client-topbar-status i { background:var(--go); box-shadow:0 0 10px var(--go); }
+
+.client-bottom-nav,
+.trainer-bottom-nav {
+  position:fixed; z-index:80; bottom:0; left:50%; transform:translateX(-50%);
+  width:min(100%,720px); height:calc(70px + env(safe-area-inset-bottom)); padding:7px 10px env(safe-area-inset-bottom);
+  display:grid; grid-template-columns:repeat(5,1fr); background:rgba(9,10,12,.96);
+  border-top:1px solid rgba(255,255,255,.1); backdrop-filter:blur(18px); box-shadow:0 -12px 30px rgba(0,0,0,.38);
+}
+.client-bottom-nav button,
+.trainer-bottom-nav button { border:0; background:transparent; color:var(--ink-dim); display:flex; flex-direction:column; gap:4px; align-items:center; justify-content:center; border-radius:12px; cursor:pointer; font-family:var(--sans); }
+.client-bottom-nav button span,
+.trainer-bottom-nav button span { font-size:20px; line-height:1; }
+.client-bottom-nav button small,
+.trainer-bottom-nav button small { font-size:9px; font-weight:700; }
+.client-bottom-nav button.active,
+.trainer-bottom-nav button.active { color:var(--mobile-lime); background:rgba(200,241,53,.1); }
+
+.client-app-shell .trainer-list-content,
+.client-app-shell .mytrainer-page,
+.client-app-shell .notif-page,
+.client-app-shell .qna-page,
+.client-app-shell .workout-plan-page,
+.client-app-shell .explore-page { min-height:0; padding:0; background:transparent; }
+.client-app-shell .trainer-list-content { max-width:none; }
+.client-app-shell .trainer-list-card,
+.client-app-shell .mytrainer-card,
+.client-app-shell .notif-item,
+.client-app-shell .notif-request-card,
+.client-app-shell .qna-card,
+.client-app-shell .wp-plan-card,
+.client-app-shell .gym-card,
+.client-app-shell .event-card { background:linear-gradient(145deg,rgba(23,25,29,.94),rgba(13,14,17,.94)); border-color:rgba(255,255,255,.1); box-shadow:0 10px 28px rgba(0,0,0,.2); }
+.client-app-shell .trainer-list-card:hover,
+.client-app-shell .mytrainer-card:hover,
+.client-app-shell .notif-item:hover { border-color:rgba(200,241,53,.5); transform:translateY(-1px); }
+.client-app-shell .trainer-search-input,
+.client-app-shell .explore-search { min-height:48px; background:#111317; border-color:rgba(255,255,255,.12); border-radius:14px; }
+.client-app-shell .trainer-search-btn,
+.client-app-shell .notif-accept-btn,
+.client-app-shell .explore-btn-primary,
+.client-app-shell .qna-answer-btn { background:var(--mobile-lime); color:#090a0c; border-radius:12px; box-shadow:0 7px 18px rgba(200,241,53,.16); }
+
+.dashboard-layout { background:radial-gradient(circle at 85% 8%,rgba(200,241,53,.09),transparent 28%),#08090b; }
+.dashboard-body { width:min(calc(100% - 24px), 620px); bottom:calc(74px + env(safe-area-inset-bottom)); gap:12px; padding-bottom:12px; }
+.metric-card { border-color:rgba(255,255,255,.1); border-radius:16px; background:linear-gradient(145deg,rgba(24,25,29,.94),rgba(13,14,17,.94)); box-shadow:none; }
+.metric-value { color:var(--mobile-lime); }
+.bottom-nav-bar { width:min(100%,720px); left:50%; right:auto; transform:translateX(-50%); background:rgba(9,10,12,.96); border-color:rgba(255,255,255,.1); }
+.nav-btn.active { color:var(--mobile-lime); }
+
+.trainer-shell { padding-bottom:calc(78px + env(safe-area-inset-bottom)); }
+.trainer-main { padding:18px 16px 28px; }
+.trainer-card { background:linear-gradient(145deg,rgba(22,24,28,.96),rgba(13,14,17,.96)); border-color:rgba(255,255,255,.1); box-shadow:0 12px 28px rgba(0,0,0,.22); }
+.trainer-btn-primary { color:#090a0c; box-shadow:0 7px 18px rgba(200,241,53,.16); }
+.trainer-badge { border-color:color-mix(in srgb,var(--accent,var(--go)) 45%,transparent); }
+.trainer-progbar { background:#272a2e; }
+
+@media (min-width: 721px) {
+  .client-bottom-nav,.trainer-bottom-nav { border:1px solid rgba(255,255,255,.1); border-bottom:0; border-radius:18px 18px 0 0; max-width:420px; }
+}
+@media (max-width: 480px) {
+  .client-app-shell .client-main,.trainer-main { padding-left:12px; padding-right:12px; }
+  .client-app-shell .trainer-list-card,.client-app-shell .mytrainer-card,.client-app-shell .notif-item,.client-app-shell .qna-card,.client-app-shell .wp-plan-card { border-radius:14px; }
+  .dashboard-body { width:calc(100% - 20px); }
+}

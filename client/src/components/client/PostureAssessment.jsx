@@ -45,6 +45,18 @@ const SEVERITY_COLORS = {
   Severe: "#ff3c5a"
 };
 
+// MediaPipe landmark proportions are dimensionless, so they remain useful
+// across camera distance and are stored only as optional baseline metadata.
+function deriveBodyProportions(landmarks) {
+  if (!Array.isArray(landmarks) || landmarks.length < 29) return null;
+  const distance = (a, b) => Math.hypot((a?.x || 0) - (b?.x || 0), (a?.y || 0) - (b?.y || 0), (a?.z || 0) - (b?.z || 0));
+  const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: ((a.z || 0) + (b.z || 0)) / 2 });
+  const shoulders = midpoint(landmarks[11], landmarks[12]); const hips = midpoint(landmarks[23], landmarks[24]); const ankles = midpoint(landmarks[27], landmarks[28]);
+  const torso = distance(shoulders, hips); const legs = distance(hips, ankles); const shoulderWidth = distance(landmarks[11], landmarks[12]); const hipWidth = distance(landmarks[23], landmarks[24]);
+  const arms = (distance(landmarks[11], landmarks[15]) + distance(landmarks[12], landmarks[16])) / 2;
+  return torso && legs && hipWidth ? { torsoToLegRatio: torso / legs, shoulderToHipRatio: shoulderWidth / hipWidth, limbLengthRatio: arms / legs } : null;
+}
+
 // Tracks actual viewport size so layout decisions (stacked vs side-by-side,
 // how big the camera box should be) respond to the real screen — not a
 // fixed assumption baked in at build time.
@@ -316,6 +328,7 @@ export default function PostureAssessment() {
         const transverse = analyzeTransversePlane(updatedCaptures.front?.landmarks);
 
         const fullReport = buildPostureReport({ front, side, back, transverse });
+        fullReport.bodyProportions = deriveBodyProportions(updatedCaptures.front?.landmarks);
         setReport(fullReport);
         setStep(4);
 
@@ -339,6 +352,7 @@ export default function PostureAssessment() {
         planes: fullReport.planes,
         findings: fullReport.findings,
         recommendations: fullReport.recommendations,
+        bodyProportions: fullReport.bodyProportions,
         heightInches: calibratedHeightInches,
         images: {
           front: allCaptures.front?.imageDataUrl || null,

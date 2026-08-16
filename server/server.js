@@ -18,7 +18,9 @@ import { initSockets } from './sockets/index.js';      // 👈 Import socket ini
 import communityRouter from './routes/community.js';
 import adminRouter from './routes/admin.js';
 import featuresRouter from './routes/features.js';
+import aiCoachRouter from './routes/aiCoach.js';
 import logger from './utils/logger.js';
+import { startMlSchedule } from './jobs/mlSchedule.js';
 
 dotenv.config();
 
@@ -75,6 +77,7 @@ app.use('/api', bookingsRouter);
 app.use('/api/community', communityRouter);// 👈 Mount bookings routes (e.g., /api/trainers/:trainerId/slots, /api/bookings)
 app.use('/api/admin', adminRouter);
 app.use('/api', featuresRouter);
+app.use('/api/ai-coach', aiCoachRouter);
 
 const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -87,6 +90,7 @@ if (process.env.NODE_ENV === 'production' && !MONGODB_URI) {
 mongoose
   .connect(MONGODB_URI || 'mongodb://127.0.0.1:27017/formcoach')
   .then(() => {
+    startMlSchedule();
     logger.info('✅ MongoDB connected successfully (Client / Primary DB)');
     server.listen(PORT, () => logger.info(`🚀 RepUps API running on port ${PORT}`));
   })

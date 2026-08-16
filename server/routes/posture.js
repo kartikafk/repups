@@ -1,6 +1,10 @@
 import express from "express";
 import PostureRecord from "../models/PostureRecord.js";
 import { requireAuth } from "../middleware/auth.js";
+import { postureFeatures } from "../services/assessmentFeatures.js";
+import { baselineFor } from "../services/cohortBaseline.js";
+import { predictAnomaly } from "../services/mlClient.js";
+import BodyProportions from "../models/BodyProportions.js";
 
 const router = express.Router();
 
@@ -8,8 +12,11 @@ const router = express.Router();
 // are deliberately ignored so one account cannot read or write another's data.
 router.post("/save", requireAuth, async (req, res) => {
   try {
-    const { overallScore, generatedAt, planes, findings, recommendations, heightInches, images } = req.body;
+    const { overallScore, generatedAt, planes, findings, recommendations, heightInches, images, bodyProportions } = req.body;
+    if (bodyProportions && Object.values(bodyProportions).every((value) => Number.isFinite(Number(value)))) await BodyProportions.findOneAndUpdate({ userId: req.user.id }, { ...bodyProportions, computedAt: new Date() }, { upsert: true });
 
+    const featureVector = postureFeatures({ overallScore, planes });
+    const [baseline, ml] = await Promise.all([baselineFor(req.user.id, featureVector).catch(() => null), predictAnomaly({ plane: "posture", features: featureVector })]);
     const newRecord = await PostureRecord.create({
       profileId: req.user.id,
       overallScore,
@@ -19,9 +26,12 @@ router.post("/save", requireAuth, async (req, res) => {
       recommendations,
       heightInches,
       images,
+      featureVector,
+      baseline,
+      ml,
     });
 
-    return res.status(201).json({ success: true, recordId: newRecord.id });
+    return res.status(201).json({ success: true, recordId: newRecord.id, baseline, ml });
   } catch (error) {
     req.log?.error(error, "Posture save failed");
     return res.status(400).json({ success: false, error: "Invalid posture assessment data." });
