@@ -2492,3 +2492,14 @@ html, body, #root {
   .client-app-shell .trainer-list-card,.client-app-shell .mytrainer-card,.client-app-shell .notif-item,.client-app-shell .qna-card,.client-app-shell .wp-plan-card { border-radius:14px; }
   .dashboard-body { width:calc(100% - 20px); }
 }
+
+/* Workout player: compact camera-ready mobile control surface. */
+.workout-session-page {
+  background:radial-gradient(circle at 88% 0,rgba(200,241,53,.10),transparent 28%),#08090b !important;
+  overflow-y:auto;
+}
+.workout-session-content { max-width:520px !important; padding:18px 14px 104px !important; }
+.workout-session-content > div { border-radius:18px !important; border-color:rgba(255,255,255,.11) !important; box-shadow:0 12px 28px rgba(0,0,0,.22); }
+.workout-session-content input { min-height:46px; border-radius:12px !important; }
+.workout-session-content button { min-height:38px; }
+.workout-session-content button:focus-visible { outline:2px solid var(--mobile-lime); outline-offset:2px; }

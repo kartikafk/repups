@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { authHeaders } from "../../api.js";
 import { 
   EXERCISE_LIBRARY, 
   searchExerciseLibrary, 
@@ -190,7 +191,7 @@ export default function WorkoutSessionPlayer({ userId: propUserId }) {
         query.append('date', dateKeyStr);
 
         console.log("📥 [WorkoutSessionPlayer] Fetching sets for userId:", userId);
-        const res = await fetch(`/api/sessions?${query.toString()}`);
+const res = await fetch(`/api/sessions?${query.toString()}`, { headers: authHeaders() });
         if (res.ok) {
           const data = await res.json();
           const map = {};
@@ -275,7 +276,7 @@ export default function WorkoutSessionPlayer({ userId: propUserId }) {
   const currentSetAssessment = setAssessments[activeSetIndex];
 
   return (
-    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"'Barlow','Barlow Condensed',sans-serif", paddingBottom: "80px" }}>
+<div className="workout-session-page" style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"'Barlow','Barlow Condensed',sans-serif", paddingBottom: "80px" }}>
       <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet"/>
       
       <style>{`
@@ -290,7 +291,7 @@ export default function WorkoutSessionPlayer({ userId: propUserId }) {
         }
       `}</style>
 
-      <div style={{ maxWidth:460, margin:"0 auto", padding:"28px 20px", display:"flex", flexDirection:"column", gap:16 }}>
+<div className="workout-session-content" style={{ maxWidth:460, margin:"0 auto", padding:"28px 20px", display:"flex", flexDirection:"column", gap:16 }}>
         
         {/* Navigation Back Button */}
         <div>
