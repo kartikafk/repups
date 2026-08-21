@@ -6,3 +6,4 @@ ml-service/app/datasets/
 ml-service/app/models_store/
 ml-service/**/*.parquet
 ml-service/**/*.pkl
+node_modules
