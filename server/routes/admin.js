@@ -7,6 +7,7 @@ import Booking from "../models/Booking.js";
 import AuditLog from "../models/AuditLog.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { audit } from "../utils/audit.js";
+import { Gym } from "../models/Feature.js";
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
@@ -14,6 +15,23 @@ const paging = (query) => ({ page: Math.max(1, Number(query.page) || 1), limit: 
 const shape = (user, role = user.role) => ({ _id: user._id, name: user.name, email: user.email, role, accountStatus: user.accountStatus || "active", createdAt: user.createdAt, gym: user.gym, goal: user.goal });
 
 router.get("/health", (_req, res) => res.json({ success: true, database: mongoose.connection.readyState === 1 }));
+const cleanList = (value) => Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : String(value || "").split(",").map((item) => item.trim()).filter(Boolean);
+const gymPayload = (body) => {
+  const latitude = Number(body.latitude);
+  const longitude = Number(body.longitude);
+  const payload = {
+    name: String(body.name || "").trim(), city: String(body.city || "").trim(), location: String(body.location || "").trim(),
+    address: String(body.address || "").trim(), mapsUrl: String(body.mapsUrl || "").trim(), description: String(body.description || "").trim(),
+    contact: String(body.contact || "").trim(), openingHours: String(body.openingHours || "").trim(), facilities: cleanList(body.facilities), active: body.active !== false,
+  };
+  if (!payload.name) throw new Error("Gym name is required.");
+  if (payload.mapsUrl) { try { const url = new URL(payload.mapsUrl); if (!/^https?:$/.test(url.protocol)) throw new Error(); } catch { throw new Error("Directions link must be a valid http(s) URL."); } }
+  if (body.latitude !== "" || body.longitude !== "") { if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) throw new Error("Enter a valid latitude and longitude."); payload.coordinates = { type: "Point", coordinates: [longitude, latitude] }; }
+  return payload;
+};
+router.get("/gyms", async (_req, res, next) => { try { res.json({ success: true, gyms: await Gym.find().sort({ createdAt: -1 }).lean() }); } catch (error) { next(error); } });
+router.post("/gyms", async (req, res, next) => { try { const gym = await Gym.create(gymPayload(req.body)); await audit(req, "gym.created", "gym", gym._id, { name: gym.name }); res.status(201).json({ success: true, gym }); } catch (error) { if (error.message) return res.status(400).json({ success: false, error: error.message }); next(error); } });
+router.patch("/gyms/:gymId", async (req, res, next) => { try { const gym = await Gym.findByIdAndUpdate(req.params.gymId, gymPayload(req.body), { new: true, runValidators: true }); if (!gym) return res.status(404).json({ success: false, error: "Gym not found." }); await audit(req, "gym.updated", "gym", gym._id, { name: gym.name }); res.json({ success: true, gym }); } catch (error) { if (error.message) return res.status(400).json({ success: false, error: error.message }); next(error); } });
 router.get("/dashboard", async (_req, res, next) => { try {
   const [clients, admins, trainers, sessions, bookings, recentUsers] = await Promise.all([User.countDocuments({ role: "client", deletedAt: null }), User.countDocuments({ role: "admin", deletedAt: null }), Trainer.countDocuments(), Session.countDocuments(), Booking.countDocuments(), User.find({ deletedAt: null }).select("name email role accountStatus createdAt").sort({ createdAt: -1 }).limit(8).lean()]);
   res.json({ success: true, stats: { clients, admins, trainers, sessions, bookings, totalUsers: clients + admins + trainers }, recentUsers: recentUsers.map(shape) });

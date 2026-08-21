@@ -1,155 +1,81 @@
-import { useEffect, useRef } from 'react';
-import { EXERCISES } from '../../hooks/exercises';
+import { useEffect, useRef } from "react";
+import { EXERCISES } from "../../hooks/exercises";
+
+const scoreLabel = (score) => {
+  if (score == null) return "Analyzing";
+  if (score >= 85) return "Great";
+  if (score >= 65) return "Good";
+  return "Improve";
+};
 
 export default function CameraView({ tracker, exercise, facingMode, shouldStart, onStop, onEndSet }) {
- const {
-videoRef,
-canvasRef,
-
-cue,
-hudStatus,
-
-repCount,
-rom,
-tempo,
-phase,
-
-jointScores,
-balance,
-fatigue,
-movementQuality,
-stability,
-symmetry,
-
-start,
-stop
-} = tracker;
-
   const localVideoRef = useRef(null);
-  const shouldStartRef = useRef(shouldStart);
-
-  useEffect(() => {
-    shouldStartRef.current = shouldStart;
-  }, [shouldStart]);
+  const {
+    videoRef, canvasRef, cue = {}, hudStatus, repCount = 0, rom, tempo,
+    phase, movementQuality, stability, start, stop,
+  } = tracker;
 
   useEffect(() => {
     if (!shouldStart) return undefined;
     let cancelled = false;
     let started = false;
-
     const startCamera = async () => {
       try {
-        console.log('[CameraView] starting camera flow', { shouldStart, facingMode });
-
         let attempts = 0;
         while (!localVideoRef.current && attempts < 30) {
           await new Promise((resolve) => setTimeout(resolve, 50));
           attempts += 1;
         }
-
-        const videoNode = localVideoRef.current;
-        console.log('[CameraView] video ref state', { hasVideo: !!videoNode, nodeType: videoNode?.nodeName });
-
-        if (cancelled) return;
-        if (!videoNode) {
-          throw new Error('Camera preview element was not ready. Please refresh the page and try again.');
-        }
-
-        videoRef.current = videoNode;
-        console.log('Assigning videoRef', videoNode);
-        await start(facingMode, videoNode);
-        if (!cancelled) started = true;
+        if (cancelled || !localVideoRef.current) return;
+        videoRef.current = localVideoRef.current;
+        await start(facingMode, localVideoRef.current);
+        started = true;
       } catch (error) {
-        if (!cancelled) {
-          console.error('[CameraView] start failed:', error);
-        }
+        console.error("Unable to start workout camera", error);
       }
     };
-
     startCamera();
+    return () => { cancelled = true; if (started) stop(); };
+  }, [shouldStart, start, stop, facingMode, videoRef]);
 
-    return () => {
-      cancelled = true;
-      if (started) {
-        stop();
-      }
-    };
-  }, [shouldStart, start, stop, facingMode]);
+  const exerciseName = EXERCISES[exercise]?.label || exercise || "Workout";
+  const tempoText = tempo ? `${tempo.ecc.toFixed(1)}-${tempo.pause.toFixed(1)}-${tempo.con.toFixed(1)}` : "—";
+  const liveScore = movementQuality == null ? null : Math.round(movementQuality);
 
-  // Ending a set only stops the tracker and hands control back to
-  // WorkoutFlow via onEndSet. WorkoutFlow.handleEndSet builds the report
-  // (via tracker.buildReport()) and ReportView saves it exactly once.
-  // CameraView does NOT talk to the backend directly -- a duplicate save
-  // here (with its own, less-reliable userId resolution and a hardcoded
-  // fallback score) was producing a second, failing POST for every set.
-  const handleEndSetClick = () => {
-    if (onEndSet) {
-      onEndSet();
-    }
-  };
-
-  if (!tracker) {
-    return null;
-  }
-
-  const cueColor = cue.kind === 'warn' ? 'var(--warn)' : cue.kind === 'bad' ? 'var(--bad)' : 'var(--go)';
-  
   return (
-    <div className="cam-wrap">
-      <video
-        ref={localVideoRef}
-        playsInline
-        autoPlay
-        muted
-      />
-      <div className="camera-active-badge">Camera active</div>
-      <canvas ref={canvasRef} className="overlay" />
-
-      <div className="topbar">
-        <div>
-          <div className="ex-name">{EXERCISES[exercise]?.label || exercise}</div>
-          <div className="status">{hudStatus}</div>
-        </div>
-        <div className="icon-btn" onClick={onStop}>
-          ✕
-        </div>
-      </div>
-
-      <button className="end-set-btn" onClick={handleEndSetClick}>
-        END SET → REPORT
-      </button>
-
-      <div className="hud-bottom">
-        <div className="cue-bar">
-          <div className="cue-dot" style={{ background: cueColor, boxShadow: `0 0 12px ${cueColor}` }} />
-          <div className="cue-text">{cue.text}</div>
-        </div>
-        <div className="stat-row">
-          <div className="stat-box rep-box">
-            <div className="stat-label">Reps</div>
-            <div className="stat-value">{repCount}</div>
-          </div>
-          <div className="stat-box">
-            <div className="stat-label">Rom</div>
-            <div className="stat-value" style={{ fontSize: 22 }}>
-              {rom !== null ? `${rom}°` : '—'}
-            </div>
-          </div>
-          <div className="stat-box">
-            <div className="stat-label">Tempo</div>
-            <div className="stat-value" style={{ fontSize: 22 }}>
-              {tempo ? `${tempo.ecc.toFixed(1)}·${tempo.pause.toFixed(1)}·${tempo.con.toFixed(1)}` : '—'}
-            </div>
-          </div>
-        </div>
-        <div className="tempo-phases">
-          <div className={`phase-chip ${phase === 'descending' ? 'on' : ''}`}>ECCENTRIC</div>
-          <div className={`phase-chip ${phase === 'paused' ? 'on' : ''}`}>PAUSE</div>
-          <div className={`phase-chip ${phase === 'ascending' ? 'on' : ''}`}>CONCENTRIC</div>
-        </div>
-        <div className="live-biomechanics">
-        </div>
-      </div>
-    </div>
+    <main className="workout-live-page">
+      <header className="workout-live-header">
+        <button className="workout-live-icon" onClick={onStop} aria-label="Exit workout">←</button>
+        <div><h1>{exerciseName}</h1><p>{hudStatus || "Preparing live form analysis"}</p></div>
+        <span className="workout-live-status"><i /> LIVE</span>
+      </header>
+      <section className="workout-live-stats" aria-label="Live set stats">
+        <div><small>SET</small><strong>1 / 1</strong></div>
+        <div><small>REPS</small><strong>{repCount} <em>tracked</em></strong></div>
+        <div><small>FORM</small><strong>{liveScore ?? "—"} <em>{scoreLabel(liveScore)}</em></strong></div>
+      </section>
+      <section className="workout-live-camera">
+        <video ref={localVideoRef} playsInline autoPlay muted />
+        <canvas ref={canvasRef} className="workout-live-overlay" />
+        <div className="workout-live-camera-label"><i /> Camera analysis active</div>
+        <div className="workout-live-rom">ROM <b>{rom != null ? `${rom}°` : "—"}</b></div>
+      </section>
+      <section className="workout-live-metrics">
+        <div><small>FORM SCORE</small><strong className="workout-live-score">{liveScore ?? "—"}</strong><span>{scoreLabel(liveScore)}</span></div>
+        <div><small>ROM</small><strong>{rom != null ? `${rom}°` : "—"}</strong><span>Range of motion</span></div>
+        <div><small>TEMPO</small><strong>{tempoText}</strong><span>Controlled pace</span></div>
+      </section>
+      <section className="workout-live-cues">
+        <h2>Live cues</h2>
+        <p className={cue.kind === "bad" || cue.kind === "warn" ? "workout-live-cue-warning" : ""}><span>•</span> {cue.text || "Keep a controlled, comfortable range of motion."}</p>
+        {phase && <small>Current phase: {phase}</small>}
+        {stability != null && <small>Stability: {Math.round(stability)}%</small>}
+      </section>
+      <footer className="workout-live-controls">
+        <button className="workout-live-control" onClick={onStop}><b>↶</b><span>Exit</span></button>
+        <button className="workout-live-reps" onClick={onEndSet}><b>{repCount}</b><span>Finish set</span></button>
+        <button className="workout-live-control workout-live-end" onClick={onEndSet}><b>■</b><span>End set</span></button>
+      </footer>
+    </main>
   );
 }

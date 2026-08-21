@@ -196,3 +196,12 @@ docker compose exec ml-service sh -c "ls -lah app/datasets app/models_store"
 - Cohort z-scores require at least 30 comparable body-proportion profiles.
 - A first Isolation Forest model requires 500 usable numeric rows per data key (for example `posture` or `Bench Press`).
 - Once a model exists, retraining requires at least 50 new rows, controlled by `MIN_NEW_ROWS_FOR_RETRAIN`.
+
+## Events & Gyms flow (August 2026)
+
+- Added real Events & Gyms data models, including ticket types, gym membership plans, event registrations, gym memberships, and saved gyms in `server/models/Feature.js`.
+- Expanded `server/routes/features.js` with authenticated event/gym browse, details, quote, Razorpay order, Razorpay signature verification, registration, membership, save, and ownership-scoped history endpoints.
+- Added the responsive client flow in `client/src/components/client/EventsGymsFlow.jsx` and registered all event and gym detail/checkout/success routes in `client/src/App.jsx`.
+- Added `server/scripts/seedEventsGyms.js`. It only inserts two gyms and two events when both collections are empty. Run `npm run seed:events-gyms` from `server/` for local development data.
+- Razorpay checkout requires `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in the server environment. Prices and payment signatures are validated by the server; the client never supplies an accepted final price.
+- Added an Admin Panel **Gyms** tab for adding and editing a gym's locality, complete address, latitude/longitude, facilities, availability, and validated Google Maps directions link. The protected admin endpoints are `GET /api/admin/gyms`, `POST /api/admin/gyms`, and `PATCH /api/admin/gyms/:gymId`.

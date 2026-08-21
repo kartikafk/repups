@@ -14,7 +14,7 @@ trainerConnection.on('connected', () => {
 });
 
 trainerConnection.on('error', (err) => {
-  logger.error('❌ Trainer Database Connection Error:', err && err.message ? err.message : 'Unknown error');
+  logger.error({ err }, 'Trainer database connection error');
 });
 
 // 🔑 CRITICAL: Must export as default so Trainer.js can import it successfully

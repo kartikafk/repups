@@ -16,21 +16,21 @@ import repUpLogo from "../../assets/repup-logo.jpeg";
 const STEP_CONFIG = {
   1: {
     key: "front",
-    title: "Phase 1: Frontal Alignment HUD",
+    title: "Front View",
     prompt: "🎯 Center Shoulders Within Target Box",
     instructions:
       "Position yourself so your entire upper body fits inside the dashed green HUD box. Face the camera directly, keep your posture natural, and click capture."
   },
   2: {
     key: "side",
-    title: "Phase 2: Profile Alignment HUD",
+    title: "Side View",
     prompt: "🎯 Turn Sideways for Profile Scan",
     instructions:
       "Turn 90 degrees sideways so your ear, shoulder, and hip line up with the red vertical plumb line."
   },
   3: {
     key: "back",
-    title: "Phase 3: Posterior Alignment HUD",
+    title: "Back View",
     prompt: "🎯 Face Away From the Camera",
     instructions:
       "Turn around so your back faces the camera. Keep your feet shoulder-width apart and arms relaxed at your sides."
@@ -43,6 +43,12 @@ const SEVERITY_COLORS = {
   Mild: "#e8d13c",
   Moderate: "#ff9a3c",
   Severe: "#ff3c5a"
+};
+
+const CAPTURE_UI = {
+  1: { label: "Front", frame: "/posture-capture/frame-front.png", rightPanel: "/posture-capture/right-panel-front.png", tip: "/posture-capture/tip-front.png" },
+  2: { label: "Side", frame: "/posture-capture/frame-side.png", rightPanel: "/posture-capture/right-panel-side.png", tip: "/posture-capture/tip-side.png" },
+  3: { label: "Back", frame: "/posture-capture/frame-back.png", rightPanel: "/posture-capture/right-panel-back.png", tip: "/posture-capture/tip-back.png" }
 };
 
 // MediaPipe landmark proportions are dimensionless, so they remain useful
@@ -151,6 +157,7 @@ export default function PostureAssessment() {
   const [saveStatus, setSaveStatus] = useState("idle"); // idle | saving | saved | error
   const [pdfStatus, setPdfStatus] = useState("idle"); // idle | generating | done | error
   const [heightInches, setHeightInches] = useState(""); // optional, for real-world unit calibration
+  const [showTips, setShowTips] = useState(false);
 
   let profileId = localStorage.getItem("profileId");
   try {
@@ -169,7 +176,7 @@ export default function PostureAssessment() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode,
+            facingMode: { ideal: facingMode },
             width: { ideal: 1080 },
             height: { ideal: 1440 },
             aspectRatio: { ideal: 3 / 4 }
@@ -388,7 +395,26 @@ export default function PostureAssessment() {
     setPdfStatus("idle");
   };
 
+  const exitAssessment = () => {
+    // Reset local capture state before unmounting. The camera stream and
+    // pose detector are released by this component's cleanup effects.
+    handleRestart();
+    navigate("/dashboard");
+  };
+
+  const handleRetakeCurrentView = () => {
+    const key = STEP_CONFIG[step]?.key;
+    if (!key) return;
+    setCaptures((previous) => {
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
+    setShowTips(false);
+  };
+
   const currentConfig = STEP_CONFIG[step] || STEP_CONFIG[1];
+  const currentCaptureUi = CAPTURE_UI[step] || CAPTURE_UI[1];
 
   return (
     <div
@@ -450,6 +476,9 @@ export default function PostureAssessment() {
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
             />
 
+            <img className="posture-left-guide" src="/posture-capture/left-panel.png" alt="Lighting and stance guidance" />
+            <img className="posture-right-guide" src={currentCaptureUi.rightPanel} alt={`${currentCaptureUi.label} alignment guidance`} />
+
             {/* Top HUD Status Pill */}
             <div style={{ position: "absolute", top: "clamp(8px,2vw,16px)", left: "50%", transform: "translateX(-50%)", background: "rgba(8, 8, 12, 0.85)", border: "1px solid #c8ff00", padding: "6px clamp(10px,3vw,16px)", borderRadius: "20px", fontSize: "clamp(10px, 2.6vw, 12px)", color: "#c8ff00", fontWeight: 700, backdropFilter: "blur(6px)", whiteSpace: "nowrap", maxWidth: "90%", textOverflow: "ellipsis", overflow: "hidden" }}>
               {currentConfig.prompt}
@@ -461,7 +490,7 @@ export default function PostureAssessment() {
             </div>
 
             {/* Camera Flip Button */}
-            <button onClick={() => setFacingMode(prev => prev === "user" ? "environment" : "user")} style={{ position: "absolute", bottom: "clamp(8px,2vw,16px)", right: "clamp(8px,2vw,16px)", background: "#16161f", border: "1px solid #222232", color: "#f0f0f5", padding: "8px clamp(10px,2.5vw,14px)", borderRadius: "10px", fontSize: "clamp(10px,2.2vw,11px)", cursor: "pointer", zIndex: 5 }}>
+            <button onClick={() => setFacingMode(prev => prev === "user" ? "environment" : "user")} className="posture-flip-camera" type="button">
               📷 Flip Camera
             </button>
 
@@ -479,6 +508,14 @@ export default function PostureAssessment() {
                 <span>Analyzing Frame Geometry...</span>
               </div>
             )}
+
+            {showTips && <img className="posture-tip-card" src={currentCaptureUi.tip} alt={currentConfig.instructions} />}
+
+            <div className="posture-capture-controls">
+              <button onClick={handleRetakeCurrentView} className="posture-image-control" type="button" aria-label="Retake current view"><img src="/posture-capture/retake-btn.png" alt="" /><span>Retake</span></button>
+              <button onClick={triggerCaptureSequence} disabled={countdown !== null || scanning} className="posture-image-control posture-capture-button" type="button" aria-label="Capture posture view"><img src="/posture-capture/capture-btn.png" alt="" /><span>{countdown !== null ? countdown : "Capture"}</span></button>
+              <button onClick={() => setShowTips((visible) => !visible)} className="posture-image-control" type="button" aria-label="Show capture tips"><img src="/posture-capture/tips-btn.png" alt="" /><span>Tips</span></button>
+            </div>
           </div>
 
           {/* Control & Telemetry Panel */}
@@ -505,7 +542,7 @@ export default function PostureAssessment() {
               </div>
             )}
 
-            <div className="panel-actions" style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+            <div className="panel-actions posture-snap-action" style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
               <button className="action-btn" onClick={triggerCaptureSequence} disabled={countdown !== null || scanning} style={{ flex: isMobile ? "1 1 100%" : "0 1 auto" }}>
                 {countdown !== null ? `Capturing in ${countdown}...` : `Snap & Analyze ${currentConfig.key.charAt(0).toUpperCase() + currentConfig.key.slice(1)} View ⚡`}
               </button>

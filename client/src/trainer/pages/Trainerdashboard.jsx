@@ -28,7 +28,6 @@ export default function TrainerDashboard() {
   const [navOpen, setNavOpen] = useState(false);
   const { isMobile } = useBreakpoint();
 
-  // State for live trainer profile from backend database
   const [trainerData, setTrainerData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
@@ -45,18 +44,11 @@ export default function TrainerDashboard() {
       console.error("Error reading stored user from localStorage", err);
     }
 
-    if (!trainerId) {
-      setLoading(false);
-      return;
-    }
+    if (!trainerId) { setLoading(false); return; }
 
     fetch(apiUrl(`trainers/${trainerId}`))
       .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.trainer) {
-          setTrainerData(data.trainer);
-        }
-      })
+      .then((data) => { if (data.success && data.trainer) setTrainerData(data.trainer); })
       .catch((err) => console.error("Failed to fetch trainer profile:", err))
       .finally(() => setLoading(false));
   }, []);
@@ -86,7 +78,7 @@ export default function TrainerDashboard() {
     reviews:      <ReviewsView />,
     earnings:     <EarningsView />,
     billing:      <BillingView />,
-    profile:      <ProfileView trainer={trainerData} />, // 👈 Pass live trainer data prop here
+    profile:      <ProfileView trainer={trainerData} />,
     settings:     <SettingsView />,
     help:         <HelpView />,
   };
@@ -95,8 +87,9 @@ export default function TrainerDashboard() {
 
   if (loading) {
     return (
-      <div style={{ background: C.bg, minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", color: C.text, fontFamily: "'Barlow', sans-serif" }}>
-        Loading Trainer Portal...
+      <div style={{ background: C.bg, minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", color: C.text, fontFamily: "'DM Sans', sans-serif", flexDirection: "column", gap: 12 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: C.lime, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#080A0E", boxShadow: `0 0 20px ${C.lime}55` }}>💪</div>
+        <div style={{ fontSize: 14, color: C.sub }}>Loading Trainer Portal...</div>
       </div>
     );
   }
@@ -106,19 +99,19 @@ export default function TrainerDashboard() {
 
   return (
     <div className="trainer-shell">
-      <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet"/>
+      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
       {/* Top bar */}
       <div className="trainer-topbar">
         <div className="trainer-topbar-brand">
           <div className="trainer-topbar-logo" style={{ "--accent": C.lime }}>💪</div>
           <div>
-            <div className="trainer-topbar-title">Rep<span style={{ color:C.lime }}>Ups</span></div>
+            <div className="trainer-topbar-title">Rep<span style={{ color: C.lime }}>Ups</span></div>
             {!isMobile && <div className="trainer-topbar-subtitle">{activeLabel || "Trainer Portal"}</div>}
           </div>
         </div>
 
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {!isMobile && (
             <div className="trainer-topbar-status">
               <div className="trainer-topbar-dot" style={{ "--accent": C.lime }} />
@@ -138,11 +131,22 @@ export default function TrainerDashboard() {
       <Sidebar active={view} onChange={navigateTo} open={navOpen} onClose={() => setNavOpen(false)} />
 
       <main className="trainer-main">
-        {viewMap[view] || <div style={{ color:C.sub }}>Coming soon</div>}
+        {viewMap[view] || <div style={{ color: C.sub, padding: 20, textAlign: "center", fontFamily: "'Space Mono', monospace", fontSize: 13 }}>Coming soon</div>}
       </main>
+
+      {/* Bottom nav */}
       <nav className="trainer-bottom-nav" aria-label="Trainer navigation">
-        {[['dashboard', '⌂', 'Home'], ['clients', '♧', 'Clients'], ['assessments', '◎', 'Assess'], ['messages', '◌', 'Messages'], ['profile', '◉', 'Profile']].map(([id, icon, label]) => (
-          <button key={id} className={view === id ? 'active' : ''} onClick={() => navigateTo(id)}><span>{icon}</span><small>{label}</small></button>
+        {[
+          ['dashboard', '🏠', 'Home'],
+          ['clients', '👥', 'Clients'],
+          ['assessments', '🎯', 'Assess'],
+          ['messages', '💬', 'Messages'],
+          ['profile', '👤', 'Profile'],
+        ].map(([id, icon, label]) => (
+          <button key={id} className={view === id ? 'active' : ''} onClick={() => navigateTo(id)}>
+            <span>{icon}</span>
+            <small>{label}</small>
+          </button>
         ))}
       </nav>
     </div>

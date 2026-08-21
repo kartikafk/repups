@@ -271,11 +271,64 @@ const res = await fetch(`/api/sessions?${query.toString()}`, { headers: authHead
     if (val) setWeightError("");
   };
 
-  const currentWeightValue = setWeights[activeSetIndex] ?? "";
-  const mins = Math.floor(elapsed / 60), secs = elapsed % 60;
-  const currentSetAssessment = setAssessments[activeSetIndex];
+  const currentWeightValue = setWeights[activeSetIndex] ?? "";
+  const mins = Math.floor(elapsed / 60), secs = elapsed % 60;
+  const currentSetAssessment = setAssessments[activeSetIndex];
 
-  return (
+  const startAssessment = () => {
+    if (!isBodyweightEx && (!currentWeightValue || Number(currentWeightValue) <= 0)) {
+      setWeightError("Enter a valid weight before starting the assessment.");
+      return;
+    }
+    setWeightError("");
+    navigate("/workout", {
+      state: {
+        exercise: currentExerciseObj.trackingKey || currentExerciseObj.key,
+        facingMode,
+        setIndex: activeSetIndex,
+        date: dateKeyStr,
+        weight: isBodyweightEx ? 0 : Number(currentWeightValue),
+        userId
+      }
+    });
+  };
+
+  return <WorkoutTrackingLayout
+    navigate={navigate}
+    selectedDate={selectedDate}
+    setSelectedDate={setSelectedDate}
+    changeDay={changeDay}
+    weekDays={weekDays}
+    todayOnlyStr={todayOnlyStr}
+    elapsed={elapsed}
+    search={search}
+    setSearch={setSearch}
+    exerciseType={exerciseType}
+    setExerciseType={setExerciseType}
+    activeSections={activeSections}
+    openMainSection={openMainSection}
+    toggleMainSection={toggleMainSection}
+    openMuscleGroup={openMuscleGroup}
+    toggleMuscleGroup={toggleMuscleGroup}
+    selectedExKey={selectedExKey}
+    handlePickExercise={handlePickExercise}
+    searchResults={searchResults}
+    currentExerciseObj={currentExerciseObj}
+    currentWeightValue={currentWeightValue}
+    handleWeightChange={handleWeightChange}
+    weightError={weightError}
+    activeSets={activeSets}
+    activeSetIndex={activeSetIndex}
+    selectSet={selectSet}
+    addMoreSet={addMoreSet}
+    setAssessments={setAssessments}
+    isReadOnly={isReadOnly}
+    isBodyweightEx={isBodyweightEx}
+    startAssessment={startAssessment}
+    setShowAiModal={setShowAiModal}
+  />;
+
+  return (
 <div className="workout-session-page" style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"'Barlow','Barlow Condensed',sans-serif", paddingBottom: "80px" }}>
       <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet"/>
       
@@ -746,4 +799,70 @@ const res = await fetch(`/api/sessions?${query.toString()}`, { headers: authHead
       )}
     </div>
   );
+}
+
+function WorkoutTrackingLayout({
+  navigate, selectedDate, setSelectedDate, changeDay, weekDays, todayOnlyStr,
+  elapsed, search, setSearch, exerciseType, setExerciseType, activeSections,
+  openMainSection, toggleMainSection, openMuscleGroup, toggleMuscleGroup, selectedExKey, handlePickExercise, searchResults,
+  currentExerciseObj, currentWeightValue, handleWeightChange, weightError,
+  activeSets, activeSetIndex, selectSet, addMoreSet, setAssessments,
+  isReadOnly, isBodyweightEx, startAssessment, setShowAiModal
+}) {
+  const dayName = selectedDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const mins = Math.floor(elapsed / 60);
+  const secs = String(elapsed % 60).padStart(2, "0");
+  const selectedSet = activeSetIndex + 1;
+  const sectionCount = (section) => section.muscleGroups.reduce((sum, group) => sum + getExercisesFor(exerciseType, section.id, group).length, 0);
+
+  return (
+    <main className="workout-v2-page">
+      <header className="workout-v2-header">
+        <button className="workout-v2-home" onClick={() => navigate("/dashboard")} type="button">← Home</button>
+        <div className="workout-v2-title"><h1>Workout Tracking</h1><p>Track. Assess. <b>Improve.</b></p></div>
+        <div className="workout-v2-timer"><i /><strong>{mins}:{secs}</strong><span>Elapsed</span></div>
+      </header>
+
+      <section className="workout-v2-card workout-v2-calendar">
+        <div><small>▣ &nbsp; Today</small><b>{dayName}</b></div>
+        <nav><button onClick={() => changeDay(-1)} type="button">‹</button><button onClick={() => setSelectedDate(new Date())} type="button">Today</button><button onClick={() => changeDay(1)} type="button">›</button></nav>
+        <div className="workout-v2-days">{weekDays.map((day) => {
+          const selected = day.toDateString() === selectedDate.toDateString();
+          const future = getLocalDateString(day) > todayOnlyStr;
+          return <button key={day.toISOString()} className={selected ? "active" : ""} disabled={future} onClick={() => setSelectedDate(day)} type="button"><span>{day.toLocaleDateString(undefined, { weekday: "narrow" })}</span><b>{day.getDate()}</b></button>;
+        })}</div>
+      </section>
+
+      <section className="workout-v2-card workout-v2-picker">
+        <p className="workout-v2-kicker">1. Select exercise</p>
+        <label className="workout-v2-search">⌕<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search exercise, muscle, or equipment…" /></label>
+        <div className="workout-v2-types"><button className={exerciseType === "weighted" ? "active" : ""} onClick={() => setExerciseType("weighted")} type="button">⚙ Weighted</button><button className={exerciseType === "bodyweight" ? "active" : ""} onClick={() => setExerciseType("bodyweight")} type="button">♙ Bodyweight</button></div>
+        <div className="workout-v2-sections">{activeSections.map((section) => {
+          const isOpen = openMainSection === section.id;
+          const image = section.id === "upper" ? "/workout/upper-body-muscles.png" : section.id === "lower" ? "/workout/lower-body-muscles.png" : null;
+          return <div key={section.id} className="workout-v2-category"><button className={isOpen ? "open" : ""} onClick={() => toggleMainSection(section.id)} type="button">{image ? <img src={image} alt="" /> : <span>◉</span>}<span>{section.label} ({sectionCount(section)})</span><b>⌄</b></button>{isOpen && <div className="workout-v2-muscle-groups">{section.muscleGroups.map((group) => { const key = `${section.id}:${group}`; const exercises = getExercisesFor(exerciseType, section.id, group); const muscleOpen = openMuscleGroup === key; return <div key={key}><button onClick={() => toggleMuscleGroup(key)} type="button"><span>{group} ({exercises.length})</span><b>{muscleOpen ? "⌃" : "⌄"}</b></button>{muscleOpen && <div className="workout-v2-exercise-list">{exercises.map((exercise) => <button key={exercise.key} className={(selectedExKey === exercise.key || selectedExKey === exercise.trackingKey) ? "selected" : ""} onClick={() => handlePickExercise(exercise)} type="button">{exercise.name}<small>{exercise.equipment}</small></button>)}</div>}</div>; })}</div>}</div>;
+        })}</div>
+        {searchResults && <div className="workout-v2-exercise-list workout-v2-search-results">{searchResults.map((exercise) => <button key={exercise.key} className={(selectedExKey === exercise.key || selectedExKey === exercise.trackingKey) ? "selected" : ""} onClick={() => handlePickExercise(exercise)} type="button">{exercise.name}<small>{exercise.equipment}</small></button>)}</div>}
+      </section>
+
+      <section className="workout-v2-card workout-v2-active">
+        <p className="workout-v2-kicker">2. Active exercise</p>
+        <div className="workout-v2-active-grid">
+          <div className="workout-v2-demo">{currentExerciseObj.youtubeId ? <iframe src={`https://www.youtube.com/embed/${currentExerciseObj.youtubeId}`} title={`${currentExerciseObj.name} demonstration`} allowFullScreen /> : <span>▶<small>{currentExerciseObj.name} demo</small></span>}</div>
+          <div className="workout-v2-exercise-details"><em>{currentExerciseObj.equipment || "Exercise"}</em><h2>{currentExerciseObj.name}</h2><p>Target muscle: <b>{currentExerciseObj.muscleGroups?.join(", ")}</b></p><label>Weight to hit (kg)<input disabled={isReadOnly || isBodyweightEx} value={isBodyweightEx ? "Bodyweight" : currentWeightValue} onChange={(event) => handleWeightChange(event.target.value)} placeholder="60" /></label>{weightError && <small className="workout-v2-error">{weightError}</small>}</div>
+          <aside><small>Current focus</small><b>Set {selectedSet}</b><p>Tap Start Assessment to record & assess.</p></aside>
+        </div>
+      </section>
+
+      <section className="workout-v2-card workout-v2-sets">
+        <p className="workout-v2-kicker">3. Select set to focus & assess</p>
+        <div className="workout-v2-set-buttons">{activeSets.map((setIndex) => { const record = setAssessments[setIndex]; const focused = activeSetIndex === setIndex; return <button key={setIndex} className={focused ? "active" : ""} onClick={() => selectSet(setIndex)} type="button"><b>Set {setIndex + 1}</b><span>{focused ? "Focus" : record?.avgScore !== undefined ? `${record.avgScore} form` : "Pending"}</span></button>; })}{!isReadOnly && <button className="add" onClick={addMoreSet} type="button">＋<span>Add set</span></button>}</div>
+        <p className="workout-v2-kicker">4. Set scoreboard</p>
+        <div className="workout-v2-table"><div className="heading"><span>Set</span><span>Weight</span><span>Form score</span><span>Status</span></div>{activeSets.map((setIndex) => { const record = setAssessments[setIndex]; const focused = activeSetIndex === setIndex; return <button key={setIndex} onClick={() => selectSet(setIndex)} type="button"><span>{setIndex + 1}</span><span>{isBodyweightEx ? "Bodyweight" : (record?.weight ?? currentWeightValue ?? "—")} kg</span><span className={record?.avgScore !== undefined ? "score" : ""}>{record?.avgScore ?? "—"}</span><span className={focused ? "focus" : ""}>{focused ? "◎ Focus" : record?.avgScore !== undefined ? "Completed" : "Pending"}</span></button>; })}</div>
+      </section>
+
+      {!isReadOnly && <button className="workout-v2-start" onClick={startAssessment} type="button">⚑ &nbsp; Start Assessment</button>}
+      <button className="workout-v2-ai" onClick={() => navigate("/ai-coach")} type="button"><span>🤖</span><div><b>Refer AI Coach for Workout Assessment</b><p>AI-powered feedback, corrections & improvement tips</p></div><strong>›</strong></button>
+    </main>
+  );
 }

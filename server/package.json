@@ -9,7 +9,8 @@
     "dev": "nodemon server.js",
     "check": "node --check server.js",
     "db:init": "node scripts/initDatabase.js",
-    "admin:create": "node scripts/createAdmin.js"
+    "admin:create": "node scripts/createAdmin.js",
+    "seed:events-gyms": "node scripts/seedEventsGyms.js"
   },
   "engines": {
     "node": ">=22.0.0"

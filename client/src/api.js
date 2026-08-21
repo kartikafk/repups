@@ -6,12 +6,10 @@ export function authHeaders() {
 // Automatically resolve the correct API base URL for laptop vs mobile testing
 const getDynamicApiUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:5001/api';
-  }
-  // Fallback to your computer's local network IP when accessing via phone browser
-  return `http://${hostname}:5001/api`;
+  // Use Vite's /api proxy in development. This keeps HTTPS mobile previews
+  // from making a blocked HTTPS-to-HTTP request, while production can provide
+  // its explicit public API URL through VITE_API_URL.
+  return '/api';
 };
 
 const API_URL = getDynamicApiUrl();
@@ -49,15 +47,14 @@ function requireUserId(explicitUserId) {
 }
 
 export async function saveSession(report) {
-  const userId = requireUserId(report.userId);
-  const payload = {
-    ...report,
-    userId
-  };
+  // Session ownership is taken from the bearer token by the server. Do not
+  // require a duplicate browser-stored user object here: it may be absent
+  // after a refresh even though the user is authenticated.
+  const payload = { ...report };
 
   const res = await fetch(`${API_URL}/sessions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(payload)
   });
   if (!res.ok) throw new Error('Failed to save session');
@@ -65,29 +62,18 @@ export async function saveSession(report) {
 }
 
 export async function fetchSessions(query = {}) {
-  const userId = requireUserId(query.userId);
-
-  const finalQuery = {
-    ...query,
-    userId
-  };
-
-  const params = new URLSearchParams(finalQuery);
-  const res = await fetch(`${API_URL}/sessions?${params.toString()}`);
+  const params = new URLSearchParams(query);
+  const res = await fetch(`${API_URL}/sessions?${params.toString()}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch sessions');
   return res.json();
 }
 
 export async function syncAssessmentRecord(payload) {
-  const userId = requireUserId(payload.userId);
-  const enrichedPayload = {
-    ...payload,
-    userId
-  };
+  const enrichedPayload = { ...payload };
 
   const res = await fetch(`${API_URL}/sessions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(enrichedPayload)
   });
   if (!res.ok) throw new Error('Failed to sync session record');

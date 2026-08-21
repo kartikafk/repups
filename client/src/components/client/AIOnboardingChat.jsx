@@ -1,410 +1,108 @@
-import { useState, useRef, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import "../../styles.css";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, Bot, BrainCircuit, Dumbbell, FileText, Home, Paperclip, ScanLine, Send, SlidersHorizontal, User, X } from "lucide-react";
 import { authHeaders } from "../../api.js";
 
-// ── UI Theme & Constants ────────────────────────────────────────────────────
-const C = {
-  bg: "#0a0a0a", surface: "#111111", card: "#161616", border: "#222222",
-  lime: "#C8F135", red: "#FF4444", blue: "#3B82F6",
-  muted: "#555555", text: "#EEEEEE", sub: "#888888",
-};
+const C = { bg: "#030405", surface: "#090B0D", card: "#0D1012", border: "#242A2F", lime: "#C8FF3D", blue: "#1687FF", text: "#FFFFFF", muted: "#90989E", red: "#FF5A67" };
+const suggestedPrompts = ["Why does my lower back hurt during squats?", "Build me a mobility routine for tight hips", "How do I fix rounded shoulders?", "Is my current plan right for hypertrophy?"];
+const iconButton = { width: 38, height: 38, display: "grid", placeItems: "center", borderRadius: 12, border: `1px solid ${C.border}`, background: C.surface, color: C.text, cursor: "pointer" };
 
-const suggestedPrompts = [
-  "Why does my lower back hurt during squats?",
-  "Build me a mobility routine for tight hips",
-  "How do I fix rounded shoulders?",
-  "Is my current plan right for hypertrophy?",
-];
-
-// ── Helper Components ───────────────────────────────────────────────────────
 function TypingDots() {
-  return (
-    <div style={{ display: "flex", gap: 4, padding: "10px 14px" }}>
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          style={{
-            width: 6, height: 6, borderRadius: "50%", background: C.lime,
-            opacity: 0.6, animation: `rp-bounce 1s ${i * 0.15}s infinite`,
-          }}
-        />
-      ))}
-      <style>{`@keyframes rp-bounce {0%,80%,100%{transform:translateY(0);opacity:.4} 40%{transform:translateY(-4px);opacity:1}}`}</style>
-    </div>
-  );
+  return <div style={{ display: "flex", gap: 5, padding: "12px 14px" }}>{[0, 1, 2].map((dot) => <i key={dot} style={{ width: 6, height: 6, borderRadius: "50%", background: C.blue, animation: `rpBounce 1s ${dot * 0.14}s infinite` }} />)}<style>{"@keyframes rpBounce{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-4px);opacity:1}}"}</style></div>;
 }
 
-function AttachmentChip({ file, isUser }) {
+function FileBadge({ file, removable, onRemove, user }) {
   const isImage = file.type?.startsWith("image/");
-  return (
-    <div
-      style={{
-        display: "flex", alignItems: "center", gap: 6,
-        background: isUser ? "#00000015" : C.surface,
-        border: `1px solid ${isUser ? "#00000022" : C.border}`,
-        borderRadius: 8, padding: "6px 8px", marginBottom: 6, maxWidth: 220,
-      }}
-    >
-      {isImage && file.previewUrl ? (
-        <img src={file.previewUrl} alt={file.name} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
-      ) : (
-        <div style={{ width: 28, height: 28, borderRadius: 6, background: isUser ? "#00000020" : C.card, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>📄</div>
-      )}
-      <span style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</span>
-    </div>
-  );
+  return <div style={{ display: "flex", alignItems: "center", gap: 7, maxWidth: 230, padding: "6px 8px", borderRadius: 9, background: user ? "#00000022" : C.surface, border: `1px solid ${user ? "#ffffff2a" : C.border}` }}>
+    {isImage && file.previewUrl ? <img src={file.previewUrl} alt={file.name} style={{ width: 26, height: 26, objectFit: "cover", borderRadius: 6 }} /> : <FileText size={17} color={user ? C.text : C.blue} />}
+    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11 }}>{file.name}</span>
+    {removable && <button type="button" aria-label={`Remove ${file.name}`} onClick={onRemove} style={{ marginLeft: "auto", border: 0, padding: 0, background: "transparent", color: C.muted, cursor: "pointer", display: "grid" }}><X size={15} /></button>}
+  </div>;
 }
 
 function ChatBubble({ msg }) {
   const isUser = msg.role === "user";
-  return (
-    <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: 12 }}>
-      {!isUser && (
-        <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.lime, color: "#000", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, marginRight: 8, flexShrink: 0 }}>🤖</div>
-      )}
-      <div
-        style={{
-          maxWidth: "75%", background: isUser ? C.lime : C.card,
-          border: isUser ? "none" : `1px solid ${C.border}`,
-          color: isUser ? "#000" : C.text,
-          borderRadius: isUser ? "14px 14px 2px 14px" : "14px 14px 14px 2px",
-          padding: "10px 14px", fontSize: 13, lineHeight: 1.6,
-        }}
-      >
-        {msg.attachments?.length > 0 && (
-          <div style={{ marginBottom: msg.text ? 8 : 0 }}>
-            {msg.attachments.map((f, i) => <AttachmentChip key={i} file={f} isUser={isUser} />)}
-          </div>
-        )}
-        {msg.text}
-      </div>
+  return <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", gap: 8 }}>
+    {!isUser && <div style={{ width: 30, height: 30, flexShrink: 0, display: "grid", placeItems: "center", borderRadius: "50%", background: "#102438", color: C.blue, border: "1px solid #1b6098" }}><BrainCircuit size={16} /></div>}
+    <div style={{ maxWidth: "80%", padding: "11px 13px", borderRadius: isUser ? "15px 15px 3px 15px" : "15px 15px 15px 3px", background: isUser ? "#126CFF" : C.card, border: isUser ? "none" : `1px solid ${C.border}`, color: C.text, fontSize: 13, lineHeight: 1.55 }}>
+      {msg.attachments?.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: msg.text ? 8 : 0 }}>{msg.attachments.map((file, index) => <FileBadge key={`${file.name}-${index}`} file={file} user={isUser} />)}</div>}
+      {msg.text}
     </div>
-  );
+  </div>;
 }
 
 function PrescriptionCard({ data }) {
   if (!data) return null;
-  return (
-    <div style={{ background: C.card, border: `1px solid ${C.lime}44`, borderRadius: 14, padding: 18, marginBottom: 14 }}>
-      <div style={{ fontSize: 11, color: C.lime, textTransform: "uppercase", letterSpacing: 2, marginBottom: 14, fontWeight: 800 }}>AI-Generated Prescription</div>
-
-      {data.injuryRisks?.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: C.red, fontWeight: 700, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>⚠ Injury Risks</div>
-          {data.injuryRisks.map((r, i) => (
-            <div key={i} style={{ fontSize: 12, color: C.sub, background: C.red + "10", border: `1px solid ${C.red}33`, borderRadius: 8, padding: "8px 12px", marginBottom: 6 }}>{r}</div>
-          ))}
-        </div>
-      )}
-
-      {data.mobilityRoutine?.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: C.blue, fontWeight: 700, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Mobility Routine</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {data.mobilityRoutine.map((m, i) => (
-              <span key={i} style={{ fontSize: 12, color: C.text, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 99, padding: "6px 12px" }}>{m}</span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {data.workoutCues?.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: C.lime, fontWeight: 700, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Form Cues</div>
-          {data.workoutCues.map((c, i) => <div key={i} style={{ fontSize: 12, color: C.text, padding: "4px 0" }}>• {c}</div>)}
-        </div>
-      )}
-
-      {data.personalizedPlan?.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, color: C.sub, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Personalized Plan</div>
-          {data.personalizedPlan.map((day, i) => (
-            <div key={i} style={{ background: C.surface, borderRadius: 10, padding: 12, marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontWeight: 800, fontSize: 13, color: C.text }}>{day.day || `Day ${i + 1}`}</span>
-                <span style={{ fontSize: 11, color: C.lime, fontWeight: 700 }}>{day.focus}</span>
-              </div>
-              {(day.exercises || []).map((ex, j) => <div key={j} style={{ fontSize: 12, color: C.sub, padding: "3px 0" }}>— {ex}</div>)}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const hasContent = data.injuryRisks?.length || data.mobilityRoutine?.length || data.workoutCues?.length || data.personalizedPlan?.length;
+  if (!hasContent) return null;
+  return <section style={{ border: `1px solid ${C.border}`, background: C.card, borderRadius: 16, padding: 14 }}>
+    <h2 style={{ margin: "0 0 11px", fontSize: 15, color: C.blue }}>Daily Mobility Prescription</h2>
+    {data.injuryRisks?.length > 0 && <div style={{ marginBottom: 10 }}>{data.injuryRisks.map((risk, index) => <p key={index} style={{ margin: "5px 0", color: C.red, fontSize: 12 }}>• {risk}</p>)}</div>}
+    {data.mobilityRoutine?.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 10 }}>{data.mobilityRoutine.map((item, index) => <span key={index} style={{ border: "1px solid #1c66a0", borderRadius: 99, padding: "6px 9px", color: C.text, fontSize: 11 }}>{item}</span>)}</div>}
+    {data.workoutCues?.length > 0 && <div>{data.workoutCues.map((cue, index) => <p key={index} style={{ margin: "4px 0", color: C.lime, fontSize: 12 }}>✓ {cue}</p>)}</div>}
+    {data.personalizedPlan?.map((day, index) => <div key={index} style={{ marginTop: 8, padding: 10, borderRadius: 10, background: C.surface }}><b style={{ fontSize: 12 }}>{day.day || `Day ${index + 1}`}</b><span style={{ color: C.lime, fontSize: 11, marginLeft: 7 }}>{day.focus}</span>{day.exercises?.map((exercise, exerciseIndex) => <p key={exerciseIndex} style={{ color: C.muted, fontSize: 11, margin: "4px 0 0" }}>• {exercise}</p>)}</div>)}
+  </section>;
 }
 
-// ── Main Component ──────────────────────────────────────────────────────────
 export default function AIOnboardingChat({ coachInsight = "" }) {
   const navigate = useNavigate();
   const location = useLocation();
-
   let parsedUser = { name: "Athlete" };
-  try {
-    const rawUser = localStorage.getItem("user");
-    if (rawUser) parsedUser = JSON.parse(rawUser);
-  } catch (err) {}
-  
+  try { const rawUser = localStorage.getItem("user"); if (rawUser) parsedUser = JSON.parse(rawUser); } catch {}
   const userName = parsedUser.name;
   const profileId = parsedUser.id || localStorage.getItem("profileId");
-
-  const [messages, setMessages] = useState([
-    { role: "ai", text: `Hello ${userName}! I'm your full-time RepUps AI Biomechanics & Form Coach. I'm actively analyzing your profile metrics and posture. Ask me about form, pain points, mobility, or tap "Generate Prescription" for a full plan.` }
-  ]);
+  const [messages, setMessages] = useState([{ role: "ai", text: `Hello ${userName}! I’m your RepUps AI biomechanics and form coach. Ask me about form, pain points, mobility, or your plan.` }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  
   const [postureData, setPostureData] = useState(null);
   const [prescription, setPrescription] = useState(null);
   const [prescriptionLoading, setPrescriptionLoading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
-
-  useEffect(() => {
-    if (coachInsight) setMessages((current) => current.some((message) => message.text === coachInsight) ? current : [...current, { role: "ai", text: coachInsight }]);
-  }, [coachInsight]);
-
-  const scrollRef = useRef(null);
+  const streamRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const navItems = [
-    { label: "Posture", path: "/posture-assessment", icon: "📐" },
-    { label: "Workout", path: "/workout", icon: "🏋️" },
-    { label: "AI Coach", path: "/ai-coach", icon: "🤖" },
-    { label: "Community", path: "/community", icon: "👥" },
-    { label: "Tracks", path: "/dashboard", icon: "📋" }
-  ];
+  useEffect(() => { if (coachInsight) setMessages((current) => current.some((message) => message.text === coachInsight) ? current : [...current, { role: "ai", text: coachInsight }]); }, [coachInsight]);
+  useEffect(() => { if (!profileId) return; fetch(`/api/posture/${profileId}/latest`, { headers: authHeaders() }).then((response) => response.json()).then((data) => { if (data.success && data.record) setPostureData(data.record); }).catch(() => {}); }, [profileId]);
+  useEffect(() => { if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight; }, [messages, loading, prescription]);
 
-  // Fetch Posture Data on load
-  useEffect(() => {
-    if (!profileId) return;
-    fetch(`/api/posture/${profileId}/latest`, { headers: authHeaders() })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.record) {
-          setPostureData(data.record);
-        }
-      })
-      .catch(err => console.log("No posture scan found yet"));
-  }, [profileId]);
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, loading, prescription, pendingFiles]);
-
-  // File Handlers
-  const handleFilePick = (e) => {
-    const files = Array.from(e.target.files || []);
-    const mapped = files.map(f => ({
-      file: f, name: f.name, type: f.type,
-      previewUrl: f.type.startsWith("image/") ? URL.createObjectURL(f) : null,
-    }));
-    setPendingFiles(prev => [...prev, ...mapped]);
-    e.target.value = "";
-  };
-
-  const removePendingFile = (idx) => {
-    setPendingFiles(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  // Send Message Logic
+  const handleFilePick = (event) => { const files = Array.from(event.target.files || []).map((file) => ({ file, name: file.name, type: file.type, previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null })); setPendingFiles((current) => [...current, ...files]); event.target.value = ""; };
+  const removePendingFile = (index) => setPendingFiles((current) => { const file = current[index]; if (file?.previewUrl) URL.revokeObjectURL(file.previewUrl); return current.filter((_, itemIndex) => itemIndex !== index); });
   const sendMessage = async (text) => {
     if (!text.trim() && pendingFiles.length === 0) return;
-    
-    const attachments = pendingFiles.map(({ file, ...rest }) => rest);
-    const userMsg = { role: "user", text, attachments };
-    
-    setMessages(prev => [...prev, userMsg]);
-    const filesToSend = pendingFiles.map(f => f.file);
-    
-    setInput("");
-    setPendingFiles([]);
-    setLoading(true);
-
+    const filesToSend = pendingFiles.map((item) => item.file);
+    const attachments = pendingFiles.map(({ file, ...attachment }) => attachment);
+    setMessages((current) => [...current, { role: "user", text, attachments }]); setInput(""); setPendingFiles([]); setLoading(true);
     try {
-      let res;
-      if (filesToSend.length > 0) {
-        // FormData for attachments
-        const form = new FormData();
-        form.append("profileId", profileId || "");
-        form.append("query", text);
-        if (postureData) form.append("postureData", JSON.stringify(postureData));
-        filesToSend.forEach(f => form.append("attachments", f));
-        
-        res = await fetch("/api/ai-coach/chat", { method: "POST", headers: authHeaders(), body: form });
-      } else {
-        // Standard JSON
-        res = await fetch("/api/ai-coach/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeaders() },
-          body: JSON.stringify({ profileId, query: text, postureData }),
-        });
-      }
-      
-      const data = await res.json();
-      
-      if (res.ok && data.success) {
-        setMessages(prev => [...prev, { role: "ai", text: data.reply || data.response }]);
-      } else {
-        setMessages(prev => [...prev, { role: "ai", text: "I'm having trouble syncing your metrics right now. Make sure your core form is tight and check back!" }]);
-      }
-    } catch (err) {
-      setMessages(prev => [...prev, { role: "ai", text: "Network connection error with the AI server." }]);
-    } finally {
-      setLoading(false);
-    }
+      let response;
+      if (filesToSend.length) { const form = new FormData(); form.append("profileId", profileId || ""); form.append("query", text); if (postureData) form.append("postureData", JSON.stringify(postureData)); filesToSend.forEach((file) => form.append("attachments", file)); response = await fetch("/api/ai-coach/chat", { method: "POST", headers: authHeaders(), body: form }); }
+      else response = await fetch("/api/ai-coach/chat", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ profileId, query: text, postureData }) });
+      const data = await response.json();
+      setMessages((current) => [...current, { role: "ai", text: response.ok && data.success ? data.reply || data.response : "I’m having trouble syncing your metrics right now. Please try again shortly." }]);
+    } catch { setMessages((current) => [...current, { role: "ai", text: "Network connection error with the AI server." }]); } finally { setLoading(false); }
   };
-
-  // Generate Prescription
   const generatePrescription = async () => {
     setPrescriptionLoading(true);
-    try {
-      const res = await fetch("/api/ai-coach/generate-prescription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ profileId, postureData }),
-      });
-      const data = await res.json();
-      setPrescription(data);
-    } catch (err) {
-      setMessages(prev => [...prev, { role: "ai", text: "Couldn't generate a prescription right now — please try again shortly." }]);
-    } finally {
-      setPrescriptionLoading(false);
-    }
+    try { const response = await fetch("/api/ai-coach/generate-prescription", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ profileId, postureData }) }); setPrescription(await response.json()); }
+    catch { setMessages((current) => [...current, { role: "ai", text: "Couldn’t generate a prescription right now — please try again shortly." }]); }
+    finally { setPrescriptionLoading(false); }
   };
+  const navItems = [{ label: "Home", path: "/dashboard", icon: Home }, { label: "Workout", path: "/workout", icon: Dumbbell }, { label: "Assess", path: "/posture-assessment", icon: ScanLine }, { label: "Coach", path: "/ai-coach", icon: Bot }, { label: "Profile", path: "/client/profile", icon: User }];
 
-  return (
-    <>
-      {/* Mapped directly to your CSS classes.
-        This forces the layout to stop at the bottom nav bar,
-        and makes the middle stream scrollable. 
-      */}
-      <div className="fullscreen-chatbot-layout">
-        
-        {/* Top Header */}
-        <div className="chatbot-topbar">
-          <div className="chatbot-header-brand">
-            <div className="chatbot-status-dot" />
-            <div>
-              <span className="chatbot-title">Welcome back, {userName}</span>
-              <span className="chatbot-subtitle">RepUps AI Coach Engine</span>
-            </div>
-          </div>
-          <button 
-            className="chatbot-posture-btn" 
-            onClick={generatePrescription} 
-            disabled={prescriptionLoading}
-            style={{ opacity: prescriptionLoading ? 0.6 : 1 }}
-          >
-            {prescriptionLoading ? "Generating..." : "⚡ Generate Plan"}
-          </button>
-        </div>
-
-        {/* Scrollable Conversation Stream */}
-        <div className="chatbot-stream" ref={scrollRef}>
-          <PrescriptionCard data={prescription} />
-          
-          {messages.map((m, i) => <ChatBubble key={i} msg={m} />)}
-          
-          {loading && (
-            <div style={{ display: "flex" }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.lime, color: "#000", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, marginRight: 8, flexShrink: 0 }}>🤖</div>
-              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "14px 14px 14px 2px" }}>
-                <TypingDots />
-              </div>
-            </div>
-          )}
-
-          {/* Suggested Prompts */}
-          {messages.length <= 1 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-              {suggestedPrompts.map((p, i) => (
-                <button
-                  key={i}
-                  onClick={() => sendMessage(p)}
-                  style={{
-                    background: C.card, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 99,
-                    padding: "8px 14px", fontSize: 12, cursor: "pointer", fontFamily: "inherit"
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* File Attachments Preview */}
-          {pendingFiles.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
-              {pendingFiles.map((f, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 8px", maxWidth: 180 }}>
-                  {f.type.startsWith("image/") ? (
-                    <img src={f.previewUrl} alt={f.name} style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
-                  ) : (
-                    <div style={{ width: 28, height: 28, borderRadius: 6, background: C.surface, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>📄</div>
-                  )}
-                  <span style={{ fontSize: 11, color: C.sub, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                  <button onClick={() => removePendingFile(i)} style={{ background: "none", border: "none", color: C.sub, cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Input Bar */}
-        <div className="chatbot-bottombar">
-          <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={handleFilePick} style={{ display: "none" }} />
-          
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            title="Attach reports or photos"
-            style={{
-              background: C.card, border: `1px solid ${C.border}`, color: C.sub, borderRadius: 12,
-              width: 44, height: 44, flexShrink: 0, cursor: "pointer", fontSize: 16, display: "flex",
-              alignItems: "center", justifyContent: "center"
-            }}
-          >
-            📎
-          </button>
-          
-          <input
-            className="chatbot-textbox"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") sendMessage(input); }}
-            placeholder="Ask about form, pain, or plan..."
-          />
-          
-          <button
-            className="chatbot-send-btn"
-            onClick={() => sendMessage(input)}
-            disabled={(!input.trim() && pendingFiles.length === 0) || loading}
-          >
-            Send
-          </button>
-        </div>
-
+  return <div style={{ minHeight: "100dvh", background: C.bg, color: C.text, fontFamily: "var(--sans, Inter, sans-serif)" }}>
+    <main style={{ maxWidth: 430, minHeight: "100dvh", margin: "0 auto", padding: "12px 14px calc(151px + env(safe-area-inset-bottom, 0px))" }}>
+      <header style={{ display: "grid", gridTemplateColumns: "38px 1fr 38px", alignItems: "center", marginBottom: 13 }}><button type="button" aria-label="Go back" onClick={() => navigate(-1)} style={iconButton}><ArrowLeft size={19} /></button><h1 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 800 }}>AI Coach</h1><button type="button" aria-label="Generate daily mobility prescription" onClick={generatePrescription} disabled={prescriptionLoading} style={{ ...iconButton, color: C.blue, opacity: prescriptionLoading ? .55 : 1 }}><SlidersHorizontal size={18} /></button></header>
+      <section style={{ display: "flex", gap: 9, padding: 11, border: `1px solid ${C.border}`, borderRadius: 13, background: C.surface, marginBottom: 13 }}><BrainCircuit size={19} color={C.blue} /><p style={{ margin: 0, fontSize: 11, lineHeight: 1.45, color: C.muted }}><b style={{ color: C.text }}>General Fitness guidance only.</b><br />Not a substitute for professional advice.</p></section>
+      <div ref={streamRef} style={{ display: "flex", flexDirection: "column", gap: 12, maxHeight: "calc(100dvh - 257px)", overflowY: "auto", paddingRight: 2, scrollbarWidth: "none" }}>
+        <PrescriptionCard data={prescription} />
+        <section><h2 style={{ margin: "0 0 8px", fontSize: 13, color: C.muted, textTransform: "uppercase", letterSpacing: .8 }}>Conversation</h2><div style={{ display: "flex", flexDirection: "column", gap: 11 }}>{messages.map((message, index) => <ChatBubble key={index} msg={message} />)}{loading && <div style={{ display: "flex", gap: 8 }}><div style={{ width: 30, height: 30, display: "grid", placeItems: "center", borderRadius: "50%", background: "#102438", color: C.blue }}><BrainCircuit size={16} /></div><div style={{ border: `1px solid ${C.border}`, background: C.card, borderRadius: "14px 14px 14px 3px" }}><TypingDots /></div></div>}</div></section>
+        {messages.length <= 1 && <section><h2 style={{ margin: "0 0 8px", fontSize: 13, color: C.muted }}>Suggested Resources</h2><div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>{suggestedPrompts.map((prompt) => <button type="button" key={prompt} onClick={() => sendMessage(prompt)} style={{ border: "1px solid #1d5c96", background: "#071422", color: C.blue, borderRadius: 99, padding: "7px 10px", cursor: "pointer", fontSize: 11 }}>{prompt}</button>)}</div></section>}
       </div>
-
-      {/* Global Bottom Navigation Bar */}
-      <div className="bottom-nav-bar">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <button
-              key={item.path}
-              className={`nav-btn ${isActive ? "nav-btn-active" : ""}`}
-              onClick={() => navigate(item.path)}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </>
-  );
+    </main>
+    <section style={{ position: "fixed", zIndex: 30, bottom: "calc(67px + env(safe-area-inset-bottom, 0px))", left: "50%", transform: "translateX(-50%)", width: "min(100%, 430px)", padding: "8px 12px", borderTop: `1px solid ${C.border}`, background: "rgba(3,4,5,.97)", backdropFilter: "blur(12px)" }}>
+      <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={handleFilePick} style={{ display: "none" }} />
+      {pendingFiles.length > 0 && <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 8 }}>{pendingFiles.map((file, index) => <FileBadge key={`${file.name}-${index}`} file={file} removable onRemove={() => removePendingFile(index)} />)}</div>}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}><input value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); sendMessage(input); } }} placeholder="Ask your coach anything..." style={{ flex: 1, minWidth: 0, height: 44, padding: "0 13px", border: `1px solid ${C.border}`, borderRadius: 13, background: C.surface, color: C.text, outline: "none", fontSize: 13 }} /><button type="button" aria-label="Attach image or document" title="Attach image or document" onClick={() => fileInputRef.current?.click()} style={{ ...iconButton, flexShrink: 0, color: C.muted }}><Paperclip size={18} /></button><button type="button" aria-label="Send message" onClick={() => sendMessage(input)} disabled={loading || (!input.trim() && !pendingFiles.length)} style={{ width: 42, height: 42, border: 0, borderRadius: "50%", display: "grid", placeItems: "center", flexShrink: 0, background: C.blue, color: C.text, cursor: "pointer", opacity: loading || (!input.trim() && !pendingFiles.length) ? .45 : 1 }}><Send size={18} /></button></div>
+    </section>
+    <nav aria-label="Client navigation" style={{ position: "fixed", zIndex: 31, bottom: 0, left: "50%", transform: "translateX(-50%)", display: "flex", width: "min(100%, 430px)", height: "calc(67px + env(safe-area-inset-bottom, 0px))", paddingBottom: "env(safe-area-inset-bottom, 0px)", borderTop: `1px solid ${C.border}`, background: "#050607" }}>{navItems.map(({ label, path, icon: Icon }) => { const active = location.pathname === path; return <button key={path} type="button" onClick={() => navigate(path)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, border: 0, background: "transparent", color: active ? C.lime : C.muted, cursor: "pointer", fontSize: 10 }}><Icon size={19} strokeWidth={active ? 2.5 : 1.8} /><span>{label}</span></button>; })}</nav>
+  </div>;
 }
-

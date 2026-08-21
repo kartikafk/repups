@@ -26,6 +26,11 @@ const challengeSchema = new mongoose.Schema({
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: "ClientProfile" }],
   daysLeft: { type: Number, default: 14 },
   active: { type: Boolean, default: true }
+  ,members: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    joinedAt: { type: Date, default: Date.now },
+    progress: { type: Number, default: 0 }
+  }]
 });
 
 // NOTE: status values are now plain strings ("Pending", "Accepted",
@@ -41,7 +46,7 @@ const friendChallengeSchema = new mongoose.Schema({
   exercise: { type: String, required: true },       // human-readable name, e.g. "Back Squat"
   exerciseKey: { type: String, required: true },     // routing key, e.g. "backSquat" — was missing entirely before
   target: { type: String, required: true },
-  status: { type: String, enum: ["Pending", "Accepted", "Completed"], default: "Pending" },
+  status: { type: String, enum: ["Pending", "Accepted", "Declined", "Completed"], default: "Pending" },
   winnerId: { type: mongoose.Schema.Types.ObjectId, ref: "ClientProfile", default: null },
   createdAt: { type: Date, default: Date.now }
 });

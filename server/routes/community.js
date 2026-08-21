@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { Post, Challenge, FriendChallenge } from "../models/Community.js";
 import User from "../models/User.js";
+import Session from "../models/Session.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -44,8 +45,16 @@ const isValidObjectId = (id) => typeof id === "string" && /^[0-9a-fA-F]{24}$/.te
 // 1. GET GLOBAL COMMUNITY FEED
 router.get("/feed", async (req, res) => {
   try {
-    const posts = await Post.find().sort({ createdAt: -1 }).limit(50);
-    res.status(200).json({ success: true, posts });
+    const posts = await Post.find().sort({ createdAt: -1 }).limit(50).lean();
+    // Posts can outlive the local upload file (for example after a clean
+    // deployment). Do not send a broken local URL that would create a 404 in
+    // the client; the post itself remains visible without its missing image.
+    const visiblePosts = posts.map((post) => {
+      if (typeof post.imageUrl !== "string" || !post.imageUrl.startsWith("/uploads/")) return post;
+      const fileName = path.basename(post.imageUrl);
+      return fs.existsSync(path.join(UPLOAD_DIR, fileName)) ? post : { ...post, imageUrl: null };
+    });
+    res.status(200).json({ success: true, posts: visiblePosts });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -59,7 +68,7 @@ router.post("/feed", (req, res) => {
     }
 
     try {
-      const { name, avatar, type, text, exercise, stat } = req.body;
+      const { type, text, exercise, stat } = req.body;
       const authorId = req.user.id;
 
       if (!isValidObjectId(authorId)) {
@@ -69,19 +78,24 @@ router.post("/feed", (req, res) => {
         if (req.file) fs.unlink(req.file.path, () => {});
         return res.status(401).json({ success: false, error: "Missing or invalid author ID. Please log in again." });
       }
-      if (!name || !text?.trim()) {
+      if (!text?.trim() && !req.file) {
         if (req.file) fs.unlink(req.file.path, () => {});
         return res.status(400).json({ success: false, error: "Post needs a name and some text." });
       }
 
       const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
+      const author = await User.findById(authorId).select("name");
+      if (!author) {
+        if (req.file) fs.unlink(req.file.path, () => {});
+        return res.status(404).json({ success: false, error: "Your account could not be found." });
+      }
       const newPost = new Post({
         authorId,
-        name,
-        avatar: avatar || name.slice(0, 2).toUpperCase(),
+        name: author.name,
+        avatar: author.name.slice(0, 2).toUpperCase(),
         type: type || "workout",
-        text,
+        text: text?.trim() || "Shared a community photo.",
         imageUrl,
         exercise: exercise || null,
         stat: stat || "Update Shared"
@@ -122,18 +136,21 @@ router.post("/feed/:id/like", async (req, res) => {
 // 4. GET GLOBAL LEADERBOARD
 router.get("/leaderboard", async (req, res) => {
   try {
-    const users = await User.find()
-      .sort({ streak: -1 })
-      .limit(20)
-      .select("name streak");
-
-    const leaderboard = users.map((u, idx) => ({
-      rank: idx + 1,
-      name: u.name,
-      avatar: u.name.slice(0, 2).toUpperCase(),
-      xp: 3000 + ((u.streak || 1) * 120),
-      streak: u.streak || 10,
-    }));
+    const users = await User.find({ role: "client" }).select("name photoUrl").lean();
+    const sessionRows = await Session.aggregate([{ $group: { _id: "$userId", workouts: { $sum: 1 } } }]);
+    const byUser = new Map(sessionRows.map((row) => [String(row._id), row.workouts]));
+    const leaderboard = users
+      .map((user) => ({
+        id: user._id,
+        name: user.name,
+        avatar: user.name.slice(0, 2).toUpperCase(),
+        photoUrl: user.photoUrl || null,
+        xp: (byUser.get(String(user._id)) || 0) * 100,
+        streak: byUser.get(String(user._id)) || 0,
+      }))
+      .sort((a, b) => b.xp - a.xp || b.streak - a.streak)
+      .slice(0, 20)
+      .map((user, index) => ({ rank: index + 1, ...user }));
 
     res.status(200).json({ success: true, leaderboard });
   } catch (err) {
@@ -161,7 +178,8 @@ router.get("/challenges", async (req, res) => {
 // 6. CREATE 1v1 FRIEND CHALLENGE
 router.post("/friend-challenges", async (req, res) => {
   try {
-    const { challengerId, challengerName, recipientUsername, exercise, exerciseKey, target } = req.body;
+    const { recipientUsername, exercise, exerciseKey, target } = req.body;
+    const challengerId = req.user.id;
 
     if (!isValidObjectId(challengerId)) {
       return res.status(401).json({ success: false, error: "Missing or invalid challenger ID. Please log in again." });
@@ -180,9 +198,14 @@ router.post("/friend-challenges", async (req, res) => {
       ]
     });
 
+    const challenger = await User.findById(challengerId).select("name");
+    if (!challenger) return res.status(404).json({ success: false, error: "Your account could not be found." });
+    if (!recipient || String(recipient._id) === String(challengerId)) {
+      return res.status(400).json({ success: false, error: "Choose another registered user to challenge." });
+    }
     const newBattle = new FriendChallenge({
       challengerId,
-      challengerName,
+      challengerName: challenger.name,
       recipientUsername: recipientUsername.trim(),
       recipientId: recipient ? recipient._id : null,
       exercise,
@@ -238,7 +261,7 @@ router.get("/friend-challenges/:userId", async (req, res) => {
 // "Accept & Launch" never persisted anything to the database.
 router.post("/friend-challenges/:battleId/accept", async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = req.user.id;
     if (!isValidObjectId(userId)) {
       return res.status(401).json({ success: false, error: "Missing or invalid user ID. Please log in again." });
     }
@@ -272,6 +295,42 @@ router.post("/friend-challenges/:battleId/accept", async (req, res) => {
     await battle.save();
 
     res.status(200).json({ success: true, challenge: battle });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post("/challenges/:challengeId/join", async (req, res) => {
+  try {
+    const challenge = await Challenge.findById(req.params.challengeId);
+    if (!challenge || !challenge.active) {
+      return res.status(404).json({ success: false, error: "Challenge not found." });
+    }
+
+    const alreadyJoined = (challenge.members || []).some(
+      (member) => String(member.userId) === String(req.user.id)
+    );
+    if (!alreadyJoined) {
+      challenge.members.push({ userId: req.user.id, progress: 0 });
+      await challenge.save();
+    }
+
+    res.status(200).json({ success: true, challenge });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post("/friend-challenges/:battleId/decline", async (req, res) => {
+  try {
+    const battle = await FriendChallenge.findById(req.params.battleId);
+    if (!battle) return res.status(404).json({ success: false, error: "Challenge not found." });
+    if (String(battle.recipientId) !== String(req.user.id)) {
+      return res.status(403).json({ success: false, error: "Only the challenge recipient can decline it." });
+    }
+    battle.status = "Declined";
+    await battle.save();
+    res.json({ success: true, challenge: battle });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
